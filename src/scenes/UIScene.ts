@@ -1,9 +1,10 @@
-﻿import Phaser from "phaser";
+import Phaser from "phaser";
 
 import { SceneKeys } from "../data/SceneKeys";
 import EventBus, { GameEvent } from "../systems/EventBus";
 import resourceManager, { ResourceSnapshot, ResourceType } from "../systems/ResourceManager";
 import timeSystem from "../systems/TimeSystem";
+import KnightListPanel from "./ui/KnightListPanel";
 
 const PANEL_BACKGROUND_COLOR = 0x101c3a;
 const PANEL_STROKE_COLOR = 0xffffff;
@@ -51,6 +52,7 @@ export default class UIScene extends Phaser.Scene {
   private readonly timeButtons: TimeButtonEntry[];
   private resourceListener?: (snapshot: ResourceSnapshot) => void;
   private timeScaleListener?: (scale: number) => void;
+  private knightPanel?: KnightListPanel;
 
   public constructor() {
     super(UIScene.KEY);
@@ -63,6 +65,7 @@ export default class UIScene extends Phaser.Scene {
   public create(): void {
     this.buildResourceBar();
     this.buildTimeController();
+    this.buildKnightPanel();
     this.registerEventListeners();
 
     this.updateResourceDisplay(resourceManager.getSnapshot());
@@ -179,6 +182,18 @@ export default class UIScene extends Phaser.Scene {
   }
 
   /**
+   * Builds the knight management panel container.
+   */
+  private buildKnightPanel(): void {
+    const paddingTop = 88;
+    const panelX = this.scale.width - 16 - 560;
+    const panelY = paddingTop;
+    this.knightPanel = new KnightListPanel(this, panelX, panelY);
+    this.knightPanel.setDepth(900);
+    this.add.existing(this.knightPanel);
+  }
+
+  /**
    * Subscribes to resource and time events emitted through the shared event bus.
    */
   private registerEventListeners(): void {
@@ -208,6 +223,11 @@ export default class UIScene extends Phaser.Scene {
 
     if (this.timeScaleListener) {
       EventBus.off(GameEvent.TimeScaleChanged, this.timeScaleListener, this);
+    }
+
+    if (this.knightPanel) {
+      this.knightPanel.destroy();
+      this.knightPanel = undefined;
     }
 
     this.timeButtons.length = 0;
@@ -251,3 +271,4 @@ export default class UIScene extends Phaser.Scene {
     return Math.abs(timeSystem.getTimeScale() - scale) < Number.EPSILON;
   }
 }
+

@@ -1,11 +1,13 @@
-﻿import Phaser from "phaser";
+import Phaser from "phaser";
 
+import type { KnightsSnapshot } from "../types/state";
 import type { ResourceSnapshot } from "./ResourceManager";
 
 export const GameEvent = {
   Start: "game:start",
   ResourcesUpdated: "resource:updated",
-  TimeScaleChanged: "time:scaleChanged"
+  TimeScaleChanged: "time:scaleChanged",
+  KnightStateUpdated: "knight:stateUpdated"
 } as const;
 
 export type GameEventKey = (typeof GameEvent)[keyof typeof GameEvent];
@@ -14,6 +16,7 @@ type GameEventMap = {
   [GameEvent.Start]: void;
   [GameEvent.ResourcesUpdated]: ResourceSnapshot;
   [GameEvent.TimeScaleChanged]: number;
+  [GameEvent.KnightStateUpdated]: KnightsSnapshot;
 };
 
 type EventPayloadTuple<K extends GameEventKey> = GameEventMap[K] extends void

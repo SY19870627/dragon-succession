@@ -1,11 +1,19 @@
-﻿import Phaser from "phaser";
+import Phaser from "phaser";
 
+import { cloneGameState, createDefaultGameState } from "../data/GameStateFactory";
 import { SceneKeys } from "../data/SceneKeys";
+import type { GameState } from "../types/state";
 import dataRegistry from "../systems/DataRegistry";
+import knightManager from "../systems/KnightManager";
 import resourceManager from "../systems/ResourceManager";
 import timeSystem from "../systems/TimeSystem";
 
 const BANNER_COLORS = [0xff6b6b, 0xfeca57, 0x1dd1a1];
+
+interface CastleSceneData {
+  readonly state?: GameState;
+  readonly slotId?: string;
+}
 
 /**
  * Represents the primary castle gameplay space with system initialization hooks.
@@ -13,8 +21,26 @@ const BANNER_COLORS = [0xff6b6b, 0xfeca57, 0x1dd1a1];
 export default class CastleScene extends Phaser.Scene {
   public static readonly KEY = SceneKeys.Castle;
 
+  private startingState: GameState;
+  private activeSlotId: string | null;
+
   public constructor() {
     super(CastleScene.KEY);
+    this.startingState = createDefaultGameState();
+    this.activeSlotId = null;
+  }
+
+  /**
+   * Receives pre-loaded state data before the scene is created.
+   */
+  public init(data?: CastleSceneData): void {
+    if (data?.state) {
+      this.startingState = cloneGameState(data.state);
+    } else {
+      this.startingState = createDefaultGameState();
+    }
+
+    this.activeSlotId = data?.slotId ?? null;
   }
 
   /**
@@ -44,20 +70,20 @@ export default class CastleScene extends Phaser.Scene {
   private initializeData(): void {
     dataRegistry.initialize();
     const items = dataRegistry.getItems();
-    console.log("[CastleScene] Loaded items", items);
+    console.log("[CastleScene] Loaded items", items, "slot", this.activeSlotId);
   }
 
   /**
    * Configures supporting systems, resets state, and ensures the UI scene is active.
    */
   private initializeSystems(): void {
+    const state = this.startingState;
+
     timeSystem.reset();
-    resourceManager.initialize({
-      gold: 120,
-      food: 80,
-      fame: 45,
-      morale: 68
-    });
+    timeSystem.setTimeScale(state.timeScale);
+
+    resourceManager.initialize({ ...state.resources });
+    knightManager.initialize(state.knights);
 
     if (!this.scene.isActive(SceneKeys.UI)) {
       this.scene.launch(SceneKeys.UI);
@@ -75,6 +101,8 @@ export default class CastleScene extends Phaser.Scene {
     if (this.scene.isActive(SceneKeys.UI)) {
       this.scene.stop(SceneKeys.UI);
     }
+
+    knightManager.shutdown();
   }
 
   /**
@@ -113,3 +141,4 @@ export default class CastleScene extends Phaser.Scene {
     }).setOrigin(0.5);
   }
 }
+
