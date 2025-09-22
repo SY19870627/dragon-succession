@@ -1,0 +1,45 @@
+﻿[
+  {
+    "id": "bandit-fox",
+    "name": "Bandit Fox",
+    "level": 2,
+    "health": 55,
+    "attack": 14,
+    "defense": 6,
+    "speed": 12,
+    "traits": ["beast", "skirmisher"],
+    "loot": [
+      {"itemId": "iron-ration", "dropChance": 0.35}
+    ],
+    "bounty": {"gold": 18, "fame": 2}
+  },
+  {
+    "id": "ashen-vanguard",
+    "name": "Ashen Vanguard",
+    "level": 5,
+    "health": 140,
+    "attack": 28,
+    "defense": 18,
+    "speed": 9,
+    "traits": ["undead", "armored"],
+    "loot": [
+      {"itemId": "dragon-bone-signet", "dropChance": 0.1},
+      {"itemId": "vault-ledger", "dropChance": 0.25}
+    ],
+    "bounty": {"fame": 6, "morale": 4}
+  },
+  {
+    "id": "wyrmling-scout",
+    "name": "Wyrmling Scout",
+    "level": 4,
+    "health": 95,
+    "attack": 24,
+    "defense": 12,
+    "speed": 16,
+    "traits": ["dragonkin", "flying"],
+    "loot": [
+      {"itemId": "dragon-bone-signet", "dropChance": 0.4}
+    ],
+    "bounty": {"fame": 8, "gold": 32}
+  }
+]

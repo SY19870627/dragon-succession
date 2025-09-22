@@ -1,6 +1,7 @@
 ﻿import Phaser from "phaser";
 
 import { SceneKeys } from "../data/SceneKeys";
+import dataRegistry from "../systems/DataRegistry";
 import resourceManager from "../systems/ResourceManager";
 import timeSystem from "../systems/TimeSystem";
 
@@ -20,6 +21,7 @@ export default class CastleScene extends Phaser.Scene {
    * Sets up scene visuals, initializes core systems, and launches the persistent UI overlay.
    */
   public create(): void {
+    this.initializeData();
     this.initializeSystems();
     this.drawThroneRoom();
 
@@ -34,6 +36,15 @@ export default class CastleScene extends Phaser.Scene {
   public override update(_time: number, delta: number): void {
     const scaledSeconds = timeSystem.update(delta);
     resourceManager.update(scaledSeconds);
+  }
+
+  /**
+   * Ensures game data is loaded before gameplay systems begin processing.
+   */
+  private initializeData(): void {
+    dataRegistry.initialize();
+    const items = dataRegistry.getItems();
+    console.log("[CastleScene] Loaded items", items);
   }
 
   /**

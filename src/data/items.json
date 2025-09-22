@@ -1,0 +1,36 @@
+﻿[
+  {
+    "id": "iron-ration",
+    "name": "Iron Ration",
+    "description": "Preserved provisions that bolster the garrison for extended sieges.",
+    "rarity": "common",
+    "value": 12,
+    "tags": ["food", "military"],
+    "effects": [
+      {"resource": "morale", "amount": 5},
+      {"resource": "food", "amount": 10}
+    ]
+  },
+  {
+    "id": "dragon-bone-signet",
+    "name": "Dragon Bone Signet",
+    "description": "A carved signet said to hum with draconic authority.",
+    "rarity": "rare",
+    "value": 180,
+    "tags": ["court", "artifact"],
+    "effects": [
+      {"resource": "fame", "amount": 8}
+    ]
+  },
+  {
+    "id": "vault-ledger",
+    "name": "Vault Ledger",
+    "description": "Meticulous accounts highlighting hidden taxes and surpluses.",
+    "rarity": "uncommon",
+    "value": 64,
+    "tags": ["economy"],
+    "effects": [
+      {"resource": "gold", "amount": 25}
+    ]
+  }
+]

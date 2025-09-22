@@ -1,0 +1,141 @@
+﻿[
+  {
+    "id": "famine-rumor",
+    "title": "Whispers of Famine",
+    "prompt": "Merchants report blight creeping across the western fields.",
+    "category": "economy",
+    "weight": 5,
+    "tags": ["food", "risk"],
+    "requirements": [
+      {"resource": "food", "minimum": 30}
+    ],
+    "choices": [
+      {
+        "id": "inspect-granaries",
+        "label": "Inspect the granaries",
+        "successRate": 0.7,
+        "success": {
+          "description": "The stores are secured and the garrison is reassured.",
+          "effects": [
+            {"resource": "morale", "amount": 6}
+          ]
+        },
+        "failure": {
+          "description": "Spoilage was missed and the reserves rot silently.",
+          "effects": [
+            {"resource": "food", "amount": -12},
+            {"resource": "morale", "amount": -4}
+          ]
+        }
+      },
+      {
+        "id": "import-grain",
+        "label": "Import distant grain",
+        "successRate": 0.9,
+        "success": {
+          "description": "Foreign caravans arrive laden with grain.",
+          "effects": [
+            {"resource": "food", "amount": 20},
+            {"resource": "gold", "amount": -18}
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "dragon-sighting",
+    "title": "Dragon Sighting",
+    "prompt": "Scouts glimpsed a winged shadow near the northern pass.",
+    "category": "war",
+    "weight": 3,
+    "tags": ["dragon", "panic"],
+    "requirements": [
+      {"resource": "morale", "minimum": 25}
+    ],
+    "choices": [
+      {
+        "id": "scramble-archers",
+        "label": "Scramble the archers",
+        "successRate": 0.65,
+        "success": {
+          "description": "The wyrmling is driven back by a barrage of bolts.",
+          "effects": [
+            {"resource": "fame", "amount": 4},
+            {"resource": "morale", "amount": 5}
+          ]
+        },
+        "failure": {
+          "description": "The archers scatter, leaving the pass exposed.",
+          "effects": [
+            {"resource": "morale", "amount": -8}
+          ],
+          "followUpEventId": "wyrmling-retaliation"
+        }
+      },
+      {
+        "id": "broker-truce",
+        "label": "Send an envoy to broker a truce",
+        "successRate": 0.5,
+        "success": {
+          "description": "The wyrmling accepts tribute and shares rumors of rival dragons.",
+          "effects": [
+            {"resource": "fame", "amount": 6},
+            {"resource": "gold", "amount": -20}
+          ],
+          "followUpEventId": "dragon-intelligence"
+        },
+        "failure": {
+          "description": "The envoy vanishes in smoke, morale plummets.",
+          "effects": [
+            {"resource": "morale", "amount": -10},
+            {"resource": "gold", "amount": -10}
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "courtly-intrigue",
+    "title": "Courtly Intrigue",
+    "prompt": "Nobles vie for influence after the latest royal proclamation.",
+    "category": "court",
+    "weight": 4,
+    "tags": ["court", "politics"],
+    "requirements": [
+      {"resource": "fame", "minimum": 5}
+    ],
+    "choices": [
+      {
+        "id": "host-banquet",
+        "label": "Host a conciliatory banquet",
+        "successRate": 0.8,
+        "success": {
+          "description": "The nobles leave sated and full of praise.",
+          "effects": [
+            {"resource": "morale", "amount": 6},
+            {"resource": "fame", "amount": 3},
+            {"resource": "gold", "amount": -15}
+          ]
+        }
+      },
+      {
+        "id": "back-ally",
+        "label": "Back a daring ally",
+        "successRate": 0.55,
+        "success": {
+          "description": "Your ally unearths corruption and pledges support.",
+          "effects": [
+            {"resource": "fame", "amount": 7}
+          ]
+        },
+        "failure": {
+          "description": "The gambit fails and the court whispers grow colder.",
+          "effects": [
+            {"resource": "fame", "amount": -6},
+            {"resource": "morale", "amount": -3}
+          ]
+        }
+      }
+    ]
+  }
+]

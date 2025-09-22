@@ -1,0 +1,38 @@
+﻿[
+  {
+    "id": "fortified-ration-batch",
+    "name": "Fortified Ration Batch",
+    "description": "Stretch the stores by blending grains with preserved meat.",
+    "craftingTimeHours": 6,
+    "cost": {"gold": 8},
+    "ingredients": [
+      {"itemId": "iron-ration", "quantity": 1}
+    ],
+    "result": {"itemId": "iron-ration", "quantity": 2},
+    "unlockTags": ["kitchen"]
+  },
+  {
+    "id": "arcane-audit",
+    "name": "Arcane Audit",
+    "description": "Summon auditors to locate forgotten vaults.",
+    "craftingTimeHours": 12,
+    "cost": {"fame": 2, "gold": 25},
+    "ingredients": [
+      {"itemId": "vault-ledger", "quantity": 1}
+    ],
+    "result": {"itemId": "vault-ledger", "quantity": 1},
+    "unlockTags": ["court", "economy"]
+  },
+  {
+    "id": "dragon-pact",
+    "name": "Dragon Pact",
+    "description": "Bind the signet with courtly oaths to sway nobles.",
+    "craftingTimeHours": 18,
+    "cost": {"fame": 5, "morale": 3},
+    "ingredients": [
+      {"itemId": "dragon-bone-signet", "quantity": 1}
+    ],
+    "result": {"itemId": "dragon-bone-signet", "quantity": 1},
+    "unlockTags": ["court", "ritual"]
+  }
+]
