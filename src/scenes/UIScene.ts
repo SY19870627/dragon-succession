@@ -42,6 +42,16 @@ interface TimeButtonEntry {
   readonly label: Phaser.GameObjects.Text;
 }
 
+interface KnightToggleButton {
+  readonly container: Phaser.GameObjects.Container;
+  readonly background: Phaser.GameObjects.Rectangle;
+  readonly label: Phaser.GameObjects.Text;
+}
+
+const KNIGHT_BUTTON_WIDTH = 120;
+const KNIGHT_BUTTON_HEIGHT = 36;
+const KNIGHT_BUTTON_OFFSET_Y = 72;
+
 /**
  * Heads-up display scene that renders resource information and time controls.
  */
@@ -53,10 +63,13 @@ export default class UIScene extends Phaser.Scene {
   private resourceListener?: (snapshot: ResourceSnapshot) => void;
   private timeScaleListener?: (scale: number) => void;
   private knightPanel?: KnightListPanel;
+  private knightToggle?: KnightToggleButton;
+  private knightPanelVisible: boolean;
 
   public constructor() {
     super(UIScene.KEY);
     this.timeButtons = [];
+    this.knightPanelVisible = false;
   }
 
   /**
@@ -66,8 +79,10 @@ export default class UIScene extends Phaser.Scene {
     this.buildResourceBar();
     this.buildTimeController();
     this.buildKnightPanel();
+    this.buildKnightToggle();
     this.registerEventListeners();
 
+    this.updateKnightToggleAppearance();
     this.updateResourceDisplay(resourceManager.getSnapshot());
     this.highlightTimeButtons(timeSystem.getTimeScale());
   }
@@ -182,7 +197,7 @@ export default class UIScene extends Phaser.Scene {
   }
 
   /**
-   * Builds the knight management panel container.
+   * Builds the knight management panel container but keeps it hidden until toggled.
    */
   private buildKnightPanel(): void {
     const paddingTop = 88;
@@ -190,7 +205,59 @@ export default class UIScene extends Phaser.Scene {
     const panelY = paddingTop;
     this.knightPanel = new KnightListPanel(this, panelX, panelY);
     this.knightPanel.setDepth(900);
+    this.knightPanel.setVisible(false);
+    this.knightPanel.setActive(false);
     this.add.existing(this.knightPanel);
+  }
+
+  /**
+   * Creates the toggle button used to show or hide the knight panel.
+   */
+  private buildKnightToggle(): void {
+    const x = this.scale.width - KNIGHT_BUTTON_WIDTH / 2 - 16;
+    const y = KNIGHT_BUTTON_OFFSET_Y;
+    const container = this.add.container(x, y);
+
+    const background = this.add.rectangle(
+      0,
+      0,
+      KNIGHT_BUTTON_WIDTH,
+      KNIGHT_BUTTON_HEIGHT,
+      BUTTON_IDLE_COLOR,
+      1
+    );
+    background.setOrigin(0.5);
+    background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
+    background.setInteractive({ useHandCursor: true });
+
+    const label = this.add.text(0, 0, "Knights", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "16px",
+      fontStyle: "bold",
+      color: TEXT_MUTED_COLOR
+    });
+    label.setOrigin(0.5);
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
+      if (!this.knightPanelVisible) {
+        background.setFillStyle(BUTTON_HOVER_COLOR, 1);
+      }
+    });
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
+      this.updateKnightToggleAppearance();
+    });
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => {
+      this.toggleKnightPanel();
+    });
+
+    container.add(background);
+    container.add(label);
+    container.setDepth(960);
+    container.setScrollFactor(0);
+
+    this.knightToggle = { container, background, label };
   }
 
   /**
@@ -225,12 +292,18 @@ export default class UIScene extends Phaser.Scene {
       EventBus.off(GameEvent.TimeScaleChanged, this.timeScaleListener, this);
     }
 
+    if (this.knightToggle) {
+      this.knightToggle.container.destroy(true);
+      this.knightToggle = undefined;
+    }
+
     if (this.knightPanel) {
       this.knightPanel.destroy();
       this.knightPanel = undefined;
     }
 
     this.timeButtons.length = 0;
+    this.knightPanelVisible = false;
   }
 
   /**
@@ -270,5 +343,46 @@ export default class UIScene extends Phaser.Scene {
   private isScaleActive(scale: number): boolean {
     return Math.abs(timeSystem.getTimeScale() - scale) < Number.EPSILON;
   }
-}
 
+  private toggleKnightPanel(): void {
+    this.setKnightPanelVisibility(!this.knightPanelVisible);
+  }
+
+  private setKnightPanelVisibility(visible: boolean): void {
+    if (!this.knightPanel) {
+      return;
+    }
+
+    this.knightPanelVisible = visible;
+    this.knightPanel.setVisible(visible);
+    this.knightPanel.setActive(visible);
+
+    if (visible) {
+      this.knightPanel.refreshFromManager();
+      this.knightPanel.setDepth(950);
+      this.children.bringToTop(this.knightPanel);
+    }
+
+    if (this.knightToggle) {
+      this.children.bringToTop(this.knightToggle.container);
+    }
+
+    this.updateKnightToggleAppearance();
+  }
+
+  private updateKnightToggleAppearance(): void {
+    if (!this.knightToggle) {
+      return;
+    }
+
+    if (this.knightPanelVisible) {
+      this.knightToggle.background.setFillStyle(BUTTON_ACTIVE_COLOR, 1);
+      this.knightToggle.background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.6);
+      this.knightToggle.label.setColor(BUTTON_ACTIVE_TEXT_COLOR);
+    } else {
+      this.knightToggle.background.setFillStyle(BUTTON_IDLE_COLOR, 1);
+      this.knightToggle.background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
+      this.knightToggle.label.setColor(TEXT_MUTED_COLOR);
+    }
+  }
+}

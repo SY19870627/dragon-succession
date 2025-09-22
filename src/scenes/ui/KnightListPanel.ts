@@ -109,6 +109,13 @@ export default class KnightListPanel extends Phaser.GameObjects.Container {
     this.rerender();
   }
 
+  /**
+   * Forces the panel to rebuild itself using the latest knight manager snapshot.
+   */
+  public refreshFromManager(): void {
+    this.rerender();
+  }
+
   public override destroy(fromScene?: boolean): void {
     this.unregisterEvents();
     this.rosterContainer.destroy(true);
