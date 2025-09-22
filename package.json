@@ -1,0 +1,19 @@
+{
+  "name": "dragon-succession",
+  "version": "0.1.0",
+  "description": "Dragon Succession prototype built with Phaser 3 and TypeScript",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "phaser": "^3.80.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.2",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.0"
+  }
+}
