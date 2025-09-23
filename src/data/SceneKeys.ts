@@ -6,6 +6,7 @@ export const SceneKeys = {
   Preload: "PreloadScene",
   MainMenu: "MainMenuScene",
   Castle: "CastleScene",
+  Map: "MapScene",
   UI: "UIScene"
 } as const;
 

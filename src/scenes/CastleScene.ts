@@ -1,4 +1,4 @@
-import Phaser from "phaser";
+﻿import Phaser from "phaser";
 
 import { cloneGameState, createDefaultGameState } from "../data/GameStateFactory";
 import { SceneKeys } from "../data/SceneKeys";
@@ -50,6 +50,7 @@ export default class CastleScene extends Phaser.Scene {
     this.initializeData();
     this.initializeSystems();
     this.drawThroneRoom();
+    this.drawNavigationControls();
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.teardownSystems();
@@ -106,6 +107,46 @@ export default class CastleScene extends Phaser.Scene {
   }
 
   /**
+   * Renders navigation controls for transitioning to auxiliary scenes.
+   */
+  private drawNavigationControls(): void {
+    const buttonWidth = 220;
+    const buttonHeight = 52;
+    const x = this.scale.width - buttonWidth / 2 - 48;
+    const y = this.scale.height - buttonHeight / 2 - 48;
+
+    const button = this.add.rectangle(x, y, buttonWidth, buttonHeight, 0x1e3465, 1);
+    button.setStrokeStyle(2, 0x3ba4f6, 0.85);
+    button.setInteractive({ useHandCursor: true });
+    button.on("pointerover", () => button.setFillStyle(0x244c8a, 1));
+    button.on("pointerout", () => button.setFillStyle(0x1e3465, 1));
+    button.on("pointerup", () => this.openMapScene());
+
+    const label = this.add.text(x, y, "Open Strategic Map", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "18px",
+      color: "#f5f6fa"
+    });
+    label.setOrigin(0.5);
+  }
+
+  /**
+   * Pauses castle operations and launches the interactive world map.
+   */
+  private openMapScene(): void {
+    if (this.scene.isActive(SceneKeys.Map)) {
+      return;
+    }
+
+    if (this.scene.isActive(SceneKeys.UI)) {
+      this.scene.sleep(SceneKeys.UI);
+    }
+
+    this.scene.launch(SceneKeys.Map, { returnScene: CastleScene.KEY });
+    this.scene.pause();
+  }
+
+  /**
    * Renders the placeholder throne room composition.
    */
   private drawThroneRoom(): void {
@@ -141,4 +182,11 @@ export default class CastleScene extends Phaser.Scene {
     }).setOrigin(0.5);
   }
 }
+
+
+
+
+
+
+
 
