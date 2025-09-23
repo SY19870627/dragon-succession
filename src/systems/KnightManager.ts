@@ -1,4 +1,4 @@
-import { KNIGHT_EPITHETS, KNIGHT_FIRST_NAMES, KNIGHT_PROFESSIONS, KNIGHT_TRAITS } from "../data/KnightDefinitions";
+﻿import { KNIGHT_EPITHETS, KNIGHT_FIRST_NAMES, KNIGHT_PROFESSIONS, KNIGHT_TRAITS } from "../data/KnightDefinitions";
 import type {
   KnightAttributes,
   KnightProfession,
@@ -90,6 +90,68 @@ class KnightManager {
     return this.state.roster.map((knight) => this.cloneKnight(knight));
   }
 
+  /**
+   * Retrieves roster members matching the supplied identifiers.
+   */
+  public getRosterMembers(ids: ReadonlyArray<string>): KnightRecord[] {
+    const lookup = new Set(ids);
+    return this.state.roster
+      .filter((knight) => lookup.has(knight.id))
+      .map((knight) => this.cloneKnight(knight));
+  }
+
+  /**
+   * Adjusts injury and fatigue deltas for rostered knights.
+   */
+  public applyConditionAdjustments(
+    adjustments: ReadonlyArray<{
+      readonly knightId: string;
+      readonly injuryDelta?: number;
+      readonly fatigueDelta?: number;
+    }>
+  ): void {
+    if (!this.initialized || adjustments.length === 0) {
+      return;
+    }
+
+    let mutated = false;
+
+    adjustments.forEach((adjustment) => {
+      const index = this.state.roster.findIndex((entry) => entry.id === adjustment.knightId);
+      if (index === -1) {
+        return;
+      }
+
+      const knight = this.state.roster[index];
+      if (!knight) {
+        return;
+      }
+
+      let newInjury = knight.injury;
+      let newFatigue = knight.fatigue;
+
+      if (typeof adjustment.injuryDelta === "number" && Number.isFinite(adjustment.injuryDelta)) {
+        newInjury = Math.max(0, Math.min(100, newInjury + adjustment.injuryDelta));
+      }
+
+      if (typeof adjustment.fatigueDelta === "number" && Number.isFinite(adjustment.fatigueDelta)) {
+        newFatigue = Math.max(0, Math.min(100, newFatigue + adjustment.fatigueDelta));
+      }
+
+      if (newInjury !== knight.injury || newFatigue !== knight.fatigue) {
+        this.state.roster[index] = {
+          ...knight,
+          injury: newInjury,
+          fatigue: newFatigue
+        };
+        mutated = true;
+      }
+    });
+
+    if (mutated) {
+      this.emitSnapshot();
+    }
+  }
   /**
    * Retrieves the current candidate listing.
    */
@@ -252,4 +314,7 @@ class KnightManager {
 const knightManager = new KnightManager();
 
 export default knightManager;
+
+
+
 
