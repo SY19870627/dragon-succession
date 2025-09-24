@@ -4,12 +4,15 @@ import { SceneKeys } from "../data/SceneKeys";
 import EventBus, { GameEvent } from "../systems/EventBus";
 import resourceManager, { ResourceSnapshot, ResourceType } from "../systems/ResourceManager";
 import timeSystem from "../systems/TimeSystem";
+import economySystem from "../systems/EconomySystem";
+import type { EconomyForecast, WeeklyProjection } from "../types/economy";
 import KnightListPanel from "./ui/KnightListPanel";
 
 const PANEL_BACKGROUND_COLOR = 0x101c3a;
 const PANEL_STROKE_COLOR = 0xffffff;
 const TEXT_PRIMARY_COLOR = "#f0f5ff";
 const TEXT_MUTED_COLOR = "#b8c4e3";
+const TEXT_WARNING_COLOR = "#ff6b6b";
 const BUTTON_IDLE_COLOR = 0x1f2f4a;
 const BUTTON_HOVER_COLOR = 0x29415f;
 const BUTTON_ACTIVE_COLOR = 0xf1c40f;
@@ -59,9 +62,12 @@ export default class UIScene extends Phaser.Scene {
   public static readonly KEY = SceneKeys.UI;
 
   private resourceText!: Phaser.GameObjects.Text;
+  private economyCurrentText!: Phaser.GameObjects.Text;
+  private economyNextText!: Phaser.GameObjects.Text;
   private readonly timeButtons: TimeButtonEntry[];
   private resourceListener?: (snapshot: ResourceSnapshot) => void;
   private timeScaleListener?: (scale: number) => void;
+  private economyListener?: (forecast: EconomyForecast) => void;
   private knightPanel?: KnightListPanel;
   private knightToggle?: KnightToggleButton;
   private knightPanelVisible: boolean;
@@ -84,6 +90,7 @@ export default class UIScene extends Phaser.Scene {
 
     this.updateKnightToggleAppearance();
     this.updateResourceDisplay(resourceManager.getSnapshot());
+    this.updateEconomyForecast(economySystem.getWeeklyForecast());
     this.highlightTimeButtons(timeSystem.getTimeScale());
   }
 
@@ -92,25 +99,42 @@ export default class UIScene extends Phaser.Scene {
    */
   private buildResourceBar(): void {
     const panelWidth = 440;
-    const panelHeight = 56;
+    const panelHeight = 108;
     const container = this.add.container(16, 16);
 
     const background = this.add.rectangle(0, 0, panelWidth, panelHeight, PANEL_BACKGROUND_COLOR, 0.9);
     background.setOrigin(0, 0);
     background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.2);
 
-    this.resourceText = this.add.text(16, panelHeight / 2, "", {
+    this.resourceText = this.add.text(16, 12, "", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "18px",
       color: TEXT_PRIMARY_COLOR
     });
-    this.resourceText.setOrigin(0, 0.5);
+    this.resourceText.setOrigin(0, 0);
+
+    this.economyCurrentText = this.add.text(16, 40, "", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "15px",
+      color: TEXT_MUTED_COLOR
+    });
+    this.economyCurrentText.setOrigin(0, 0);
+
+    this.economyNextText = this.add.text(16, 62, "", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "15px",
+      color: TEXT_MUTED_COLOR
+    });
+    this.economyNextText.setOrigin(0, 0);
 
     container.add(background);
     container.add(this.resourceText);
+    container.add(this.economyCurrentText);
+    container.add(this.economyNextText);
     container.setDepth(1000);
     container.setScrollFactor(0);
   }
+
 
   /**
    * Constructs the time control buttons, wiring pointer interactions for speed adjustment.
@@ -272,8 +296,13 @@ export default class UIScene extends Phaser.Scene {
       this.highlightTimeButtons(scale);
     };
 
+    this.economyListener = (forecast: EconomyForecast) => {
+      this.updateEconomyForecast(forecast);
+    };
+
     EventBus.on(GameEvent.ResourcesUpdated, this.resourceListener, this);
     EventBus.on(GameEvent.TimeScaleChanged, this.timeScaleListener, this);
+    EventBus.on(GameEvent.EconomyForecastUpdated, this.economyListener, this);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.unregisterEventListeners();
@@ -290,6 +319,10 @@ export default class UIScene extends Phaser.Scene {
 
     if (this.timeScaleListener) {
       EventBus.off(GameEvent.TimeScaleChanged, this.timeScaleListener, this);
+    }
+
+    if (this.economyListener) {
+      EventBus.off(GameEvent.EconomyForecastUpdated, this.economyListener, this);
     }
 
     if (this.knightToggle) {
@@ -318,6 +351,44 @@ export default class UIScene extends Phaser.Scene {
 
     this.resourceText.setText(formatted);
   }
+
+  /**
+   * Updates the weekly economy summary text.
+   */
+  private updateEconomyForecast(forecast: EconomyForecast): void {
+    const currentLine = this.formatForecastLine("This Week", forecast.currentWeek);
+    const nextLine = this.formatForecastLine("Next Week", forecast.nextWeek);
+
+    this.economyCurrentText.setText(currentLine);
+    this.economyCurrentText.setColor(
+      forecast.currentWeek.deficits.length > 0 ? TEXT_WARNING_COLOR : TEXT_MUTED_COLOR
+    );
+
+    this.economyNextText.setText(nextLine);
+    this.economyNextText.setColor(
+      forecast.nextWeek.deficits.length > 0 ? TEXT_WARNING_COLOR : TEXT_MUTED_COLOR
+    );
+  }
+
+  /**
+   * Formats a weekly projection into a concise summary line.
+   */
+  private formatForecastLine(label: string, projection: WeeklyProjection): string {
+    const segments = RESOURCE_ORDER.map((resource) => {
+      const net = Math.round(projection.net[resource]);
+      const total = Math.round(projection.resultingTotals[resource]);
+      const sign = net >= 0 ? "+" : "";
+      return `${RESOURCE_LABEL[resource]} ${sign}${net} (${total})`;
+    });
+
+    const deficitSuffix =
+      projection.deficits.length > 0
+        ? ` DEFICIT: ${projection.deficits.map((resource) => RESOURCE_LABEL[resource]).join(", ")}`
+        : "";
+
+    return `${label} - Week ${projection.weekNumber}: ${segments.join("  ")}${deficitSuffix}`;
+  }
+
 
   /**
    * Applies visual highlighting to the active time control button.
@@ -386,3 +457,13 @@ export default class UIScene extends Phaser.Scene {
     }
   }
 }
+
+
+
+
+
+
+
+
+
+

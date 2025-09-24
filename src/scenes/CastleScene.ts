@@ -1,4 +1,4 @@
-﻿import Phaser from "phaser";
+import Phaser from "phaser";
 
 import { cloneGameState, createDefaultGameState } from "../data/GameStateFactory";
 import { MAP_NODE_DEFINITIONS, type MapNodeDefinition } from "../data/MapNodes";
@@ -10,6 +10,7 @@ import dataRegistry from "../systems/DataRegistry";
 import EventBus, { GameEvent } from "../systems/EventBus";
 import expeditionSystem from "../systems/ExpeditionSystem";
 import knightManager from "../systems/KnightManager";
+import economySystem from "../systems/EconomySystem";
 import questManager from "../systems/QuestManager";
 import resourceManager from "../systems/ResourceManager";
 import timeSystem from "../systems/TimeSystem";
@@ -126,6 +127,7 @@ export default class CastleScene extends Phaser.Scene {
 
     resourceManager.initialize({ ...state.resources });
     knightManager.initialize(state.knights);
+    economySystem.initialize();
 
     if (!this.scene.isActive(SceneKeys.UI)) {
       this.scene.launch(SceneKeys.UI);
@@ -144,6 +146,7 @@ export default class CastleScene extends Phaser.Scene {
       this.scene.stop(SceneKeys.UI);
     }
 
+    economySystem.shutdown();
     knightManager.shutdown();
   }
 
@@ -618,5 +621,8 @@ export default class CastleScene extends Phaser.Scene {
     this.refreshDispatchPanel();
   }
 }
+
+
+
 
 

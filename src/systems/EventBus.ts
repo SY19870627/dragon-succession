@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 
+import type { EconomyForecast } from "../types/economy";
 import type { KnightsSnapshot } from "../types/state";
 import type { ResourceSnapshot } from "./ResourceManager";
 
@@ -7,16 +8,30 @@ export const GameEvent = {
   Start: "game:start",
   ResourcesUpdated: "resource:updated",
   TimeScaleChanged: "time:scaleChanged",
-  KnightStateUpdated: "knight:stateUpdated"
+  KnightStateUpdated: "knight:stateUpdated",
+  WeekAdvanced: "time:weekAdvanced",
+  EconomyForecastUpdated: "economy:forecastUpdated"
 } as const;
 
 export type GameEventKey = (typeof GameEvent)[keyof typeof GameEvent];
+
+/**
+ * Payload emitted when the simulation completes a weekly interval.
+ */
+export interface WeekTickPayload {
+  /** Count of weeks that have fully elapsed since the current session began. */
+  weekCompleted: number;
+  /** Cumulative scaled seconds that have passed. */
+  totalElapsedSeconds: number;
+}
 
 type GameEventMap = {
   [GameEvent.Start]: void;
   [GameEvent.ResourcesUpdated]: ResourceSnapshot;
   [GameEvent.TimeScaleChanged]: number;
   [GameEvent.KnightStateUpdated]: KnightsSnapshot;
+  [GameEvent.WeekAdvanced]: WeekTickPayload;
+  [GameEvent.EconomyForecastUpdated]: EconomyForecast;
 };
 
 type EventPayloadTuple<K extends GameEventKey> = GameEventMap[K] extends void
