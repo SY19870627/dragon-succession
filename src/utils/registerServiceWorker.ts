@@ -1,5 +1,3 @@
-import "vite/client";
-
 type ViteImportMeta = ImportMeta & {
   readonly env?: {
     readonly DEV?: boolean;

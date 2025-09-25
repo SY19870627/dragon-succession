@@ -59,6 +59,19 @@ const KNIGHT_BUTTON_WIDTH = 120;
 const KNIGHT_BUTTON_HEIGHT = 36;
 const KNIGHT_BUTTON_OFFSET_Y = 72;
 
+const EVENT_MODAL_WIDTH = 560;
+const EVENT_MODAL_HEIGHT = 560;
+const EVENT_CHOICE_HORIZONTAL_PADDING = 30;
+const EVENT_CHOICE_BUTTON_WIDTH = EVENT_MODAL_WIDTH - EVENT_CHOICE_HORIZONTAL_PADDING * 2;
+const EVENT_CHOICE_BUTTON_HEIGHT = 52;
+const EVENT_CHOICE_VERTICAL_SPACING = 14;
+const EVENT_CHOICE_AREA_MARGIN = 24;
+const EVENT_RESULT_MIN_Y = 260;
+const EVENT_RESULT_PADDING_FROM_CLOSE = 160;
+const EVENT_CLOSE_BUTTON_WIDTH = 200;
+const EVENT_CLOSE_BUTTON_HEIGHT = 48;
+const EVENT_CLOSE_BUTTON_BOTTOM_MARGIN = 28;
+
 /**
  * Heads-up display scene that renders resource information and time controls.
  */
@@ -83,11 +96,15 @@ export default class UIScene extends Phaser.Scene {
   private debugPanelVisible: boolean;
   private eventOverlay?: Phaser.GameObjects.Rectangle;
   private eventModal?: Phaser.GameObjects.Container;
+  private eventModalSize?: { width: number; height: number };
+  private eventModalBackground?: Phaser.GameObjects.Rectangle;
   private eventTitleText?: Phaser.GameObjects.Text;
   private eventPromptText?: Phaser.GameObjects.Text;
   private eventResultText?: Phaser.GameObjects.Text;
   private eventCloseButton?: Phaser.GameObjects.Container;
+  private eventCloseButtonDefaultY?: number;
   private readonly eventChoiceButtons: Phaser.GameObjects.Container[];
+  private selectedEventChoiceId: string | null;
   private eventPresentedListener?: (instance: EventInstance) => void;
   private eventResolvedListener?: (resolution: EventResolution) => void;
   private activeEvent: EventInstance | null;
@@ -100,6 +117,7 @@ export default class UIScene extends Phaser.Scene {
     this.eventChoiceButtons = [];
     this.activeEvent = null;
     this.debugPanelVisible = false;
+    this.selectedEventChoiceId = null;
   }
 
   /**
@@ -437,8 +455,8 @@ export default class UIScene extends Phaser.Scene {
     overlay.setInteractive({ useHandCursor: false });
     this.eventOverlay = overlay;
 
-    const width = 540;
-    const height = 380;
+    const width = EVENT_MODAL_WIDTH;
+    const height = EVENT_MODAL_HEIGHT;
     const x = (this.scale.width - width) / 2;
     const y = (this.scale.height - height) / 2;
     const container = this.add.container(x, y);
@@ -446,9 +464,12 @@ export default class UIScene extends Phaser.Scene {
     container.setScrollFactor(0);
     container.setVisible(false);
 
+    this.eventModalSize = { width, height };
+
     const background = this.add.rectangle(0, 0, width, height, PANEL_BACKGROUND_COLOR, 0.96);
     background.setOrigin(0, 0);
     background.setStrokeStyle(2, PANEL_STROKE_COLOR, 0.6);
+    this.eventModalBackground = background;
 
     const title = this.add.text(width / 2, 28, "", {
       fontFamily: "Segoe UI, sans-serif",
@@ -458,34 +479,45 @@ export default class UIScene extends Phaser.Scene {
     });
     title.setOrigin(0.5, 0.5);
 
-    const prompt = this.add.text(24, 68, "", {
+    const prompt = this.add.text(EVENT_CHOICE_HORIZONTAL_PADDING, 68, "", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "18px",
       color: TEXT_PRIMARY_COLOR,
-      wordWrap: { width: width - 48 }
+      wordWrap: { width: width - EVENT_CHOICE_HORIZONTAL_PADDING * 2 }
     });
     prompt.setOrigin(0, 0);
 
-    const result = this.add.text(24, height - 120, "", {
-      fontFamily: "Segoe UI, sans-serif",
-      fontSize: "17px",
-      color: TEXT_MUTED_COLOR,
-      wordWrap: { width: width - 48 }
-    });
+    const closeButtonY = height - EVENT_CLOSE_BUTTON_HEIGHT - EVENT_CLOSE_BUTTON_BOTTOM_MARGIN;
+    const result = this.add.text(
+      EVENT_CHOICE_HORIZONTAL_PADDING,
+      Math.max(EVENT_RESULT_MIN_Y, closeButtonY - EVENT_RESULT_PADDING_FROM_CLOSE),
+      "",
+      {
+        fontFamily: "Segoe UI, sans-serif",
+        fontSize: "17px",
+        color: TEXT_MUTED_COLOR,
+        wordWrap: { width: width - EVENT_CHOICE_HORIZONTAL_PADDING * 2 }
+      }
+    );
     result.setOrigin(0, 0);
     result.setVisible(false);
 
-    const closeButtonWidth = 160;
-    const closeButtonHeight = 44;
-    const closeButtonY = height - closeButtonHeight - 20;
-    const closeContainer = this.add.container(width / 2 - closeButtonWidth / 2, closeButtonY);
+    const closeContainer = this.add.container((width - EVENT_CLOSE_BUTTON_WIDTH) / 2, closeButtonY);
+    this.eventCloseButtonDefaultY = closeButtonY;
 
-    const closeBackground = this.add.rectangle(0, 0, closeButtonWidth, closeButtonHeight, BUTTON_IDLE_COLOR, 1);
+    const closeBackground = this.add.rectangle(
+      0,
+      0,
+      EVENT_CLOSE_BUTTON_WIDTH,
+      EVENT_CLOSE_BUTTON_HEIGHT,
+      BUTTON_IDLE_COLOR,
+      1
+    );
     closeBackground.setOrigin(0, 0);
     closeBackground.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.3);
     closeBackground.setInteractive({ useHandCursor: true });
 
-    const closeLabel = this.add.text(closeButtonWidth / 2, closeButtonHeight / 2, "繼續", {
+    const closeLabel = this.add.text(EVENT_CLOSE_BUTTON_WIDTH / 2, EVENT_CLOSE_BUTTON_HEIGHT / 2, "繼續", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "20px",
       color: TEXT_PRIMARY_COLOR,
@@ -630,6 +662,7 @@ export default class UIScene extends Phaser.Scene {
     this.eventResultText = undefined;
     this.eventCloseButton = undefined;
     this.activeEvent = null;
+    this.selectedEventChoiceId = null;
 
     this.timeButtons.length = 0;
     this.knightPanelVisible = false;
@@ -709,6 +742,10 @@ export default class UIScene extends Phaser.Scene {
     );
     this.eventResultText.setVisible(true);
     this.setEventChoicesEnabled(false);
+    this.emphasizeSelectedEventChoice();
+
+    const layout = this.calculateEventChoiceLayout(this.eventChoiceButtons.length);
+    this.positionEventChoiceButtons(layout);
 
     if (this.eventCloseButton) {
       this.eventCloseButton.setVisible(true);
@@ -743,13 +780,17 @@ export default class UIScene extends Phaser.Scene {
       this.eventCloseButton.setVisible(false);
     }
 
+    this.selectedEventChoiceId = null;
     this.clearEventChoices();
 
-    instance.choices.forEach((choice, index) => {
-      const button = this.createEventChoiceButton(choice, index);
+    const layout = this.calculateEventChoiceLayout(instance.choices.length);
+    instance.choices.forEach((choice) => {
+      const button = this.createEventChoiceButton(choice);
       this.eventChoiceButtons.push(button);
       this.eventModal?.add(button);
     });
+
+    this.positionEventChoiceButtons(layout);
 
     this.setEventChoicesEnabled(true);
   }
@@ -767,21 +808,22 @@ export default class UIScene extends Phaser.Scene {
   /**
    * Creates an interactive button for an event choice.
    */
-  private createEventChoiceButton(choice: EventInstance["choices"][number], index: number): Phaser.GameObjects.Container {
-    const buttonWidth = 480;
-    const buttonHeight = 54;
-    const spacing = 12;
-    const offsetX = 30;
-    const offsetY = 150 + index * (buttonHeight + spacing);
+  private createEventChoiceButton(choice: EventInstance["choices"][number]): Phaser.GameObjects.Container {
+    const container = this.add.container(EVENT_CHOICE_HORIZONTAL_PADDING, 0);
 
-    const container = this.add.container(offsetX, offsetY);
-
-    const background = this.add.rectangle(0, 0, buttonWidth, buttonHeight, BUTTON_IDLE_COLOR, 1);
+    const background = this.add.rectangle(
+      0,
+      0,
+      EVENT_CHOICE_BUTTON_WIDTH,
+      EVENT_CHOICE_BUTTON_HEIGHT,
+      BUTTON_IDLE_COLOR,
+      1
+    );
     background.setOrigin(0, 0);
     background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.25);
     background.setInteractive({ useHandCursor: true });
 
-    const label = this.add.text(buttonWidth / 2, buttonHeight / 2, choice.label, {
+    const label = this.add.text(EVENT_CHOICE_BUTTON_WIDTH / 2, EVENT_CHOICE_BUTTON_HEIGHT / 2, choice.label, {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "18px",
       color: TEXT_PRIMARY_COLOR
@@ -812,7 +854,93 @@ export default class UIScene extends Phaser.Scene {
     container.setData("label", label);
     container.setData("enabled", true);
 
+    container.setVisible(true);
+
     return container;
+  }
+
+  private calculateEventChoiceLayout(choiceCount: number): { startY: number; spacing: number } {
+    const width = this.eventModalSize?.width ?? EVENT_MODAL_WIDTH;
+
+    const promptText = this.eventPromptText;
+    const promptLocalBottom =
+      promptText !== undefined
+        ? promptText.y + promptText.getBounds().height
+        : 150 - EVENT_CHOICE_AREA_MARGIN;
+    const areaTop = promptLocalBottom + EVENT_CHOICE_AREA_MARGIN;
+
+    const gapCount = Math.max(0, choiceCount - 1);
+    const spacing = gapCount > 0 ? EVENT_CHOICE_VERTICAL_SPACING : 0;
+    const layoutHeight = choiceCount * EVENT_CHOICE_BUTTON_HEIGHT + gapCount * spacing;
+
+    const resultText = this.eventResultText;
+    const resultHeight = resultText && resultText.visible ? resultText.getBounds().height : 0;
+    let resultTop = Math.max(EVENT_RESULT_MIN_Y, areaTop + layoutHeight + EVENT_CHOICE_AREA_MARGIN);
+
+    const defaultCloseTop =
+      this.eventCloseButtonDefaultY ??
+      (EVENT_MODAL_HEIGHT - EVENT_CLOSE_BUTTON_HEIGHT - EVENT_CLOSE_BUTTON_BOTTOM_MARGIN);
+
+    const minCloseTopFromChoices = areaTop + layoutHeight + EVENT_CHOICE_AREA_MARGIN;
+    const minCloseTopFromResult = resultTop + resultHeight + EVENT_RESULT_PADDING_FROM_CLOSE;
+    const closeTop = Math.max(defaultCloseTop, minCloseTopFromChoices, minCloseTopFromResult);
+
+    if (resultText) {
+      const maxResultTop = closeTop - EVENT_RESULT_PADDING_FROM_CLOSE - resultHeight;
+      resultTop = Math.min(resultTop, maxResultTop);
+      resultTop = Math.max(EVENT_RESULT_MIN_Y, resultTop);
+      resultText.setPosition(resultText.x, resultTop);
+    }
+
+    if (this.eventCloseButton) {
+      this.eventCloseButton.setPosition(this.eventCloseButton.x, closeTop);
+    }
+
+    const requiredHeight = closeTop + EVENT_CLOSE_BUTTON_HEIGHT + EVENT_CLOSE_BUTTON_BOTTOM_MARGIN;
+    const height = Math.max(EVENT_MODAL_HEIGHT, requiredHeight);
+
+    if (this.eventModalBackground) {
+      this.eventModalBackground.setSize(width, height);
+      this.eventModalBackground.setDisplaySize(width, height);
+    }
+
+    this.eventModalSize = { width, height };
+
+    if (this.eventModal) {
+      const containerX = Math.max(0, (this.scale.width - width) / 2);
+      const containerY = Math.max(0, (this.scale.height - height) / 2);
+      this.eventModal.setPosition(containerX, containerY);
+    }
+
+    const areaBottom = closeTop - EVENT_CHOICE_AREA_MARGIN;
+    const areaHeight = Math.max(0, areaBottom - areaTop);
+    const startY = areaTop + Math.max(0, (areaHeight - layoutHeight) / 2);
+
+    return {
+      startY,
+      spacing
+    };
+  }
+
+  private positionEventChoiceButtons(layout: { startY: number; spacing: number }): void {
+    let currentY = layout.startY;
+    this.eventChoiceButtons.forEach((container, index) => {
+      container.setPosition(container.x, currentY);
+
+      currentY += EVENT_CHOICE_BUTTON_HEIGHT;
+      if (index < this.eventChoiceButtons.length - 1) {
+        currentY += layout.spacing;
+      }
+    });
+  }
+
+  private emphasizeSelectedEventChoice(): void {
+    const selectedId = this.selectedEventChoiceId;
+    this.eventChoiceButtons.forEach((container) => {
+      const choiceId = container.getData("choiceId") as string | undefined;
+      const isSelected = selectedId !== null && choiceId === selectedId;
+      container.setVisible(isSelected);
+    });
   }
 
   /**
@@ -831,6 +959,7 @@ export default class UIScene extends Phaser.Scene {
         background.setInteractive({ useHandCursor: true });
         background.setFillStyle(BUTTON_IDLE_COLOR, 1);
         label.setColor(TEXT_PRIMARY_COLOR);
+        container.setVisible(true);
       } else {
         background.disableInteractive();
       }
@@ -851,6 +980,7 @@ export default class UIScene extends Phaser.Scene {
       label?.setColor(BUTTON_ACTIVE_TEXT_COLOR);
     }
 
+    this.selectedEventChoiceId = choiceId;
     this.setEventChoicesEnabled(false);
     eventSystem.applyEventChoice(choiceId);
   }
@@ -882,6 +1012,7 @@ export default class UIScene extends Phaser.Scene {
    */
   private hideEventModal(): void {
     this.activeEvent = null;
+    this.selectedEventChoiceId = null;
     this.clearEventChoices();
 
     if (this.eventModal) {
