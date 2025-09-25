@@ -7,7 +7,7 @@ import type {
   InjuryReport,
   LootResult,
   LootEntry,
-  IntelReport
+  IntelDiscovery
 } from "../types/expeditions";
 import RNG from "../utils/RNG";
 
@@ -139,7 +139,7 @@ class BattleSimulator {
   /**
    * Determines whether intel is recovered after the expedition.
    */
-  public maybeGainIntel(encounter: EncounterDefinition, rng: RNG): IntelReport | null {
+  public maybeGainIntel(encounter: EncounterDefinition, rng: RNG): IntelDiscovery | null {
     if (encounter.intelChance <= 0) {
       return null;
     }
@@ -157,9 +157,21 @@ class BattleSimulator {
     ];
     const detail = descriptors[Math.floor(rng.next() * descriptors.length)] ?? "gained intelligence";
 
+    const dragonIntelRange = encounter.dragonIntelRange;
+    let dragonIntelGained = 0;
+    if (dragonIntelRange) {
+      const min = Math.max(0, dragonIntelRange.min);
+      const span = Math.max(0, dragonIntelRange.max - min);
+      dragonIntelGained = Math.round(min + rng.next() * span);
+      if (dragonIntelGained < min) {
+        dragonIntelGained = min;
+      }
+    }
+
     return {
-      description: `${encounter.name}: ${detail}`
-    } satisfies IntelReport;
+      description: `${encounter.name}: ${detail}`,
+      dragonIntelGained
+    } satisfies IntelDiscovery;
   }
 
   private calculatePartyPower(party: ReadonlyArray<KnightRecord>): number {

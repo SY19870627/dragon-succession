@@ -174,6 +174,7 @@ export default class CastleScene extends Phaser.Scene {
     inventorySystem.initialize(state.inventory);
     knightManager.initialize(state.knights);
     buildingSystem.initialize(state.buildings);
+    expeditionSystem.initializeDragonIntel(state.dragonIntel);
     eventSystem.initialize({
       eventSeed: state.eventSeed,
       pendingEventId: state.pendingEventId,
@@ -906,6 +907,10 @@ export default class CastleScene extends Phaser.Scene {
     const seed = this.computeExpeditionSeed(quest.id);
     const result = expeditionSystem.resolveExpedition(partyIds, node, seed);
     const summary = this.formatExpeditionResult(result, quest);
+    this.currentState = {
+      ...this.currentState,
+      dragonIntel: expeditionSystem.getDragonIntelState()
+    };
 
     this.lastExpeditionSummary = summary;
     if (this.dispatchResultText) {
@@ -956,6 +961,15 @@ export default class CastleScene extends Phaser.Scene {
 
     if (result.intel) {
       lines.push(`Intel: ${result.intel.description}`);
+      const gained = result.intel.dragonIntelGained;
+      const intelSummary =
+        gained > 0
+          ? `Dragon Intel +${gained} (Total ${result.intel.totalDragonIntel}/${result.intel.threshold})`
+          : `Dragon Intel ${result.intel.totalDragonIntel}/${result.intel.threshold}`;
+      lines.push(intelSummary);
+      if (result.intel.thresholdReached) {
+        lines.push("Dragon Lair sighted! Final assault unlocked.");
+      }
     }
 
     return lines.join("\n");
@@ -1009,6 +1023,7 @@ export default class CastleScene extends Phaser.Scene {
       queue: this.currentState.queue.map((item) => ({ ...item })),
       knights: knightManager.getState(),
       buildings: buildingSystem.getState(),
+      dragonIntel: expeditionSystem.getDragonIntelState(),
       eventSeed: eventSnapshot.eventSeed,
       pendingEventId: eventSnapshot.pendingEventId,
       eventLog: eventSnapshot.eventLog.map((entry) => this.cloneEventLogEntry(entry))

@@ -1,8 +1,9 @@
-import type { InventoryItem, InventoryState, KnightRecord, KnightsState } from "../types/state";
+import type { DragonIntelState, InventoryItem, InventoryState, KnightRecord, KnightsState } from "../types/state";
 import type { EventLogEntry } from "../types/events";
 import type { ResourceSnapshot } from "../systems/ResourceManager";
 import type { GameState, QueueItemState } from "../types/state";
 import { cloneBuildingState, createDefaultBuildingState } from "./BuildingState";
+import { createDefaultDragonIntelState } from "./DragonIntel";
 
 export const GAME_STATE_VERSION = 1;
 
@@ -34,6 +35,12 @@ const createDefaultKnightsState = (): KnightsState => ({
 });
 
 const createDefaultEventLog = (): EventLogEntry[] => [];
+
+const cloneDragonIntelState = (state: DragonIntelState): DragonIntelState => ({
+  current: state.current,
+  threshold: state.threshold,
+  lairUnlocked: state.lairUnlocked
+});
 
 const cloneEventLogEntry = (entry: EventLogEntry): EventLogEntry => ({
   ...entry,
@@ -80,6 +87,7 @@ export const createDefaultGameState = (): GameState => ({
   inventory: cloneInventoryState(DEFAULT_INVENTORY),
   knights: createDefaultKnightsState(),
   buildings: createDefaultBuildingState(),
+  dragonIntel: createDefaultDragonIntelState(),
   eventSeed: Math.floor(Date.now() % 1_000_000_000) + 7,
   pendingEventId: undefined,
   eventLog: createDefaultEventLog()
@@ -95,6 +103,7 @@ export const cloneGameState = (state: GameState): GameState => ({
   inventory: cloneInventoryState(state.inventory),
   knights: cloneKnightsState(state.knights),
   buildings: cloneBuildingState(state.buildings),
+  dragonIntel: cloneDragonIntelState(state.dragonIntel),
   eventSeed: state.eventSeed,
   pendingEventId: state.pendingEventId,
   eventLog: state.eventLog.map(cloneEventLogEntry)

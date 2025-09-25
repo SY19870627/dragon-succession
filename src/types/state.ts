@@ -86,6 +86,18 @@ export interface InventoryState {
 }
 
 /**
+ * Tracks accumulated intelligence on the dragon's movements during a run.
+ */
+export interface DragonIntelState {
+  /** Current intel fragments recovered by expeditions. */
+  readonly current: number;
+  /** Threshold required to reveal the dragon's lair. */
+  readonly threshold: number;
+  /** Flag indicating whether the lair has been revealed on the world map. */
+  readonly lairUnlocked: boolean;
+}
+
+/**
  * Aggregated state for all knights managed by the player.
  */
 export interface KnightsState {
@@ -141,6 +153,8 @@ export interface GameState {
   knights: KnightsState;
   /** Player progression for castle infrastructure. */
   buildings: BuildingState;
+  /** Intelligence gathered toward locating the dragon's lair. */
+  dragonIntel: DragonIntelState;
   /** Seed controlling deterministic weekly narrative event rolls. */
   eventSeed: number;
   /** Identifier for the next forced narrative event, if scheduled. */
