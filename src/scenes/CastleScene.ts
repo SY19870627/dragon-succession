@@ -15,6 +15,7 @@ import economySystem from "../systems/EconomySystem";
 import questManager from "../systems/QuestManager";
 import buildingSystem from "../systems/BuildingSystem";
 import resourceManager, { RESOURCE_TYPES, type ResourceType } from "../systems/ResourceManager";
+import inventorySystem from "../systems/InventorySystem";
 import timeSystem from "../systems/TimeSystem";
 import SaveSystem from "../utils/SaveSystem";
 
@@ -164,6 +165,7 @@ export default class CastleScene extends Phaser.Scene {
     timeSystem.setTimeScale(state.timeScale);
 
     resourceManager.initialize({ ...state.resources });
+    inventorySystem.initialize(state.inventory);
     knightManager.initialize(state.knights);
     buildingSystem.initialize(state.buildings);
     economySystem.initialize();
@@ -187,6 +189,7 @@ export default class CastleScene extends Phaser.Scene {
 
     buildingSystem.shutdown();
     economySystem.shutdown();
+    inventorySystem.shutdown();
     knightManager.shutdown();
   }
 

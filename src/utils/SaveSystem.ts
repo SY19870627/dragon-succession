@@ -1,7 +1,16 @@
 import { KNIGHT_PROFESSIONS, KNIGHT_TRAITS } from "../data/KnightDefinitions";
 import { cloneBuildingState } from "../data/BuildingState";
 import type { BuildingState } from "../types/buildings";
-import type { GameState, KnightRecord, KnightsState, QueueItemState } from "../types/state";
+import type {
+  GameState,
+  InventoryItem,
+  InventoryState,
+  KnightEquipmentSlots,
+  KnightRecord,
+  KnightsState,
+  QueueItemState
+} from "../types/state";
+import type { ItemAffix } from "../types/game";
 
 const STORAGE_PREFIX = "dragon-succession:slot:";
 const INDEX_KEY = "dragon-succession:slots";
@@ -9,6 +18,7 @@ const RESOURCE_KEYS = ["gold", "food", "fame", "morale"] as const;
 
 const KNIGHT_PROFESSION_IDS = KNIGHT_PROFESSIONS.map((entry) => entry.id);
 const KNIGHT_TRAIT_IDS = KNIGHT_TRAITS.map((entry) => entry.id);
+const DEFAULT_INVENTORY_STATE: InventoryState = { nextInstanceId: 1, items: [] };
 
 type ResourceKey = (typeof RESOURCE_KEYS)[number];
 const BUILDING_IDS = ["TrainingGround", "Forge", "Infirmary", "Watchtower"] as const;
@@ -91,13 +101,160 @@ const isKnightAttributes = (value: unknown): value is KnightAttributes => {
   );
 };
 
+const isEquipmentRecord = (value: unknown): value is KnightEquipmentSlots => {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  const weaponId = record.weaponId;
+  const armorId = record.armorId;
+  const trinketIds = record.trinketIds;
+
+  const weaponValid = weaponId === undefined || typeof weaponId === "string";
+  const armorValid = armorId === undefined || typeof armorId === "string";
+  if (!weaponValid || !armorValid) {
+    return false;
+  }
+
+  if (trinketIds === undefined) {
+    return true;
+  }
+
+  if (!Array.isArray(trinketIds)) {
+    return false;
+  }
+
+  return trinketIds.every((entry) => typeof entry === "string");
+};
+
+const isItemAffixArray = (value: unknown): value is ItemAffix[] => {
+  if (!Array.isArray(value)) {
+    return false;
+  }
+
+  return value.every((entry) => {
+    if (!isPlainObject(entry)) {
+      return false;
+    }
+
+    const record = entry as Record<string, unknown>;
+    const id = record.id;
+    const label = record.label;
+    const stat = record.stat;
+    const amount = record.value;
+
+    const statValid = stat === "strength" || stat === "intellect" || stat === "vitality";
+
+    return (
+      typeof id === "string" &&
+      typeof label === "string" &&
+      statValid &&
+      typeof amount === "number" &&
+      Number.isFinite(amount)
+    );
+  });
+};
+
+const isInventoryItemRecord = (value: unknown): value is InventoryItem => {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  const {
+    id,
+    name,
+    description,
+    rarity,
+    value: itemValue,
+    tags,
+    effects,
+    instanceId,
+    baseItemId,
+    quantity,
+    itemType,
+    quality,
+    affixes,
+    equippedBy
+  } = record;
+
+  if (
+    typeof id !== "string" ||
+    typeof name !== "string" ||
+    typeof description !== "string" ||
+    typeof rarity !== "string" ||
+    typeof itemValue !== "number" ||
+    !Number.isFinite(itemValue) ||
+    !Array.isArray(tags) ||
+    !Array.isArray(effects) ||
+    typeof instanceId !== "string" ||
+    typeof baseItemId !== "string" ||
+    typeof quantity !== "number" ||
+    !Number.isFinite(quantity)
+  ) {
+    return false;
+  }
+
+  if (itemType !== "equipment" && itemType !== "material") {
+    return false;
+  }
+
+  if (quality !== undefined && !(quality === "crude" || quality === "standard" || quality === "fine" || quality === "masterwork")) {
+    return false;
+  }
+
+  if (affixes !== undefined && !isItemAffixArray(affixes as unknown)) {
+    return false;
+  }
+
+  if (equippedBy !== undefined && typeof equippedBy !== "string") {
+    return false;
+  }
+
+  const effectsValid = effects.every((effect) => {
+    if (!isPlainObject(effect)) {
+      return false;
+    }
+
+    const recordEffect = effect as Record<string, unknown>;
+    const resource = recordEffect.resource;
+    const amount = recordEffect.amount;
+    return typeof resource === "string" && typeof amount === "number" && Number.isFinite(amount);
+  });
+
+  const tagsValid = tags.every((tag) => typeof tag === "string");
+
+  return effectsValid && tagsValid;
+};
+
+const isInventoryStateRecord = (value: unknown): value is InventoryState => {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  const nextInstanceId = record.nextInstanceId;
+  const items = record.items;
+
+  if (typeof nextInstanceId !== "number" || !Number.isFinite(nextInstanceId)) {
+    return false;
+  }
+
+  if (!Array.isArray(items)) {
+    return false;
+  }
+
+  return items.every(isInventoryItemRecord);
+};
+
 const isKnightRecord = (value: unknown): value is KnightRecord => {
   if (!isPlainObject(value)) {
     return false;
   }
 
   const candidate = value as Record<string, unknown>;
-  const { id, name, epithet, profession, trait, fatigue, injury, attributes } = candidate;
+  const { id, name, epithet, profession, trait, fatigue, injury, attributes, equipment } = candidate;
 
   if (
     typeof id !== "string" ||
@@ -109,7 +266,8 @@ const isKnightRecord = (value: unknown): value is KnightRecord => {
     !Number.isFinite(fatigue) ||
     typeof injury !== "number" ||
     !Number.isFinite(injury) ||
-    !isKnightAttributes(attributes)
+    !isKnightAttributes(attributes) ||
+    !isEquipmentRecord(equipment)
   ) {
     return false;
   }
@@ -175,6 +333,7 @@ const isGameStateRecord = (value: unknown): value is GameState => {
   const timeScale = candidate.timeScale;
   const resources = candidate.resources;
   const queue = candidate.queue;
+  const inventory = candidate.inventory;
   const knights = candidate.knights;
   const buildings = candidate.buildings;
 
@@ -187,6 +346,7 @@ const isGameStateRecord = (value: unknown): value is GameState => {
     !Number.isFinite(timeScale) ||
     !isResourceSnapshot(resources) ||
     !Array.isArray(queue) ||
+    (inventory !== undefined && !isInventoryStateRecord(inventory)) ||
     !isKnightsStateRecord(knights) ||
     !isBuildingStateRecord(buildings)
   ) {
@@ -270,8 +430,25 @@ export default class SaveSystem {
       updatedAt: timestamp,
       resources: { ...state.resources },
       queue: state.queue.map((item) => ({ ...item })),
+      inventory: SaveSystem.cloneInventoryState(state.inventory ?? DEFAULT_INVENTORY_STATE),
       knights: SaveSystem.cloneKnightsState(state.knights),
       buildings: cloneBuildingState(state.buildings)
+    };
+  }
+
+  private static cloneInventoryState(state: InventoryState): InventoryState {
+    return {
+      nextInstanceId: state.nextInstanceId,
+      items: state.items.map(SaveSystem.cloneInventoryItem)
+    };
+  }
+
+  private static cloneInventoryItem(item: InventoryItem): InventoryItem {
+    return {
+      ...item,
+      effects: item.effects.map((effect) => ({ ...effect })),
+      tags: [...item.tags],
+      affixes: item.affixes ? item.affixes.map((affix) => ({ ...affix })) : undefined
     };
   }
 
@@ -287,7 +464,12 @@ export default class SaveSystem {
   private static cloneKnightRecord(record: KnightRecord): KnightRecord {
     return {
       ...record,
-      attributes: { ...record.attributes }
+      attributes: { ...record.attributes },
+      equipment: {
+        weaponId: record.equipment.weaponId,
+        armorId: record.equipment.armorId,
+        trinketIds: [...record.equipment.trinketIds]
+      }
     };
   }
 
@@ -308,6 +490,7 @@ export default class SaveSystem {
         ...parsed,
         resources: { ...parsed.resources },
         queue: parsed.queue.map((item) => ({ ...item })),
+        inventory: SaveSystem.cloneInventoryState(parsed.inventory ?? DEFAULT_INVENTORY_STATE),
         knights: SaveSystem.cloneKnightsState(parsed.knights),
         buildings: cloneBuildingState(parsed.buildings)
       };
