@@ -6,6 +6,25 @@
 export type ItemRarity = "common" | "uncommon" | "rare" | "legendary";
 
 /**
+ * Quality tiers applied to crafted equipment, influencing affix rolls.
+ */
+export type ItemQuality = "crude" | "standard" | "fine" | "masterwork";
+
+/**
+ * Identifies a single attribute modifier applied by an item affix.
+ */
+export interface ItemAffix {
+  /** Machine-readable identifier of the affix. */
+  id: string;
+  /** Localised label presented to players. */
+  label: string;
+  /** Attribute key modified by the affix. */
+  stat: "strength" | "intellect" | "vitality";
+  /** Magnitude of the modifier. */
+  value: number;
+}
+
+/**
  * Represents a resource adjustment applied by data-driven effects.
  */
 export interface ResourceDelta {
@@ -26,6 +45,20 @@ export interface Item {
   value: number;
   tags: string[];
   effects: ResourceDelta[];
+  /** Optional quality classification for crafted equipment. */
+  quality?: ItemQuality;
+  /** Generated affix modifiers applied to the item. */
+  affixes?: ItemAffix[];
+  /** Unique runtime identifier for inventory tracking. */
+  instanceId?: string;
+  /** Reference to the originating base item definition. */
+  baseItemId?: string;
+  /** Quantity of identical items held in the stack. */
+  quantity?: number;
+  /** Indicates whether the item is suited for equipping or material use. */
+  itemType?: "equipment" | "material";
+  /** Identifier of the knight currently wielding the item, if any. */
+  equippedBy?: string;
 }
 
 /**

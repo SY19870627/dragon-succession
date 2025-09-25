@@ -1,4 +1,4 @@
-import type { KnightRecord, KnightsState } from "../types/state";
+import type { InventoryItem, InventoryState, KnightRecord, KnightsState } from "../types/state";
 import type { ResourceSnapshot } from "../systems/ResourceManager";
 import type { GameState, QueueItemState } from "../types/state";
 import { cloneBuildingState, createDefaultBuildingState } from "./BuildingState";
@@ -20,6 +20,11 @@ const DEFAULT_QUEUE: QueueItemState[] = [
   }
 ];
 
+const DEFAULT_INVENTORY: InventoryState = {
+  nextInstanceId: 1,
+  items: []
+};
+
 const createDefaultKnightsState = (): KnightsState => ({
   roster: [],
   candidates: [],
@@ -29,7 +34,12 @@ const createDefaultKnightsState = (): KnightsState => ({
 
 const cloneKnightRecord = (knight: KnightRecord): KnightRecord => ({
   ...knight,
-  attributes: { ...knight.attributes }
+  attributes: { ...knight.attributes },
+  equipment: {
+    weaponId: knight.equipment.weaponId,
+    armorId: knight.equipment.armorId,
+    trinketIds: [...knight.equipment.trinketIds]
+  }
 });
 
 const cloneKnightsState = (state: KnightsState): KnightsState => ({
@@ -37,6 +47,17 @@ const cloneKnightsState = (state: KnightsState): KnightsState => ({
   candidates: state.candidates.map(cloneKnightRecord),
   nextId: state.nextId,
   candidateSeed: state.candidateSeed
+});
+
+const cloneInventoryItem = (item: InventoryItem): InventoryItem => ({
+  ...item,
+  affixes: item.affixes ? item.affixes.map((affix) => ({ ...affix })) : [],
+  effects: item.effects.map((effect) => ({ ...effect }))
+});
+
+const cloneInventoryState = (state: InventoryState): InventoryState => ({
+  nextInstanceId: state.nextInstanceId,
+  items: state.items.map(cloneInventoryItem)
 });
 
 /**
@@ -48,6 +69,7 @@ export const createDefaultGameState = (): GameState => ({
   timeScale: 1,
   resources: { ...DEFAULT_RESOURCES },
   queue: DEFAULT_QUEUE.map((item) => ({ ...item })),
+  inventory: cloneInventoryState(DEFAULT_INVENTORY),
   knights: createDefaultKnightsState(),
   buildings: createDefaultBuildingState()
 });
@@ -59,6 +81,7 @@ export const cloneGameState = (state: GameState): GameState => ({
   ...state,
   resources: { ...state.resources },
   queue: state.queue.map((item) => ({ ...item })),
+  inventory: cloneInventoryState(state.inventory),
   knights: cloneKnightsState(state.knights),
   buildings: cloneBuildingState(state.buildings)
 });

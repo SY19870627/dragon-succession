@@ -2,7 +2,7 @@ import Phaser from "phaser";
 
 import type { BuildingSnapshot } from "../types/buildings";
 import type { EconomyForecast } from "../types/economy";
-import type { KnightsSnapshot } from "../types/state";
+import type { InventoryState, KnightsSnapshot } from "../types/state";
 import type { ResourceSnapshot } from "./ResourceManager";
 
 export const GameEvent = {
@@ -10,6 +10,7 @@ export const GameEvent = {
   ResourcesUpdated: "resource:updated",
   TimeScaleChanged: "time:scaleChanged",
   KnightStateUpdated: "knight:stateUpdated",
+  InventoryUpdated: "inventory:updated",
   WeekAdvanced: "time:weekAdvanced",
   EconomyForecastUpdated: "economy:forecastUpdated",
   BuildingsUpdated: "building:updated"
@@ -32,6 +33,7 @@ type GameEventMap = {
   [GameEvent.ResourcesUpdated]: ResourceSnapshot;
   [GameEvent.TimeScaleChanged]: number;
   [GameEvent.KnightStateUpdated]: KnightsSnapshot;
+  [GameEvent.InventoryUpdated]: InventoryState;
   [GameEvent.WeekAdvanced]: WeekTickPayload;
   [GameEvent.EconomyForecastUpdated]: EconomyForecast;
   [GameEvent.BuildingsUpdated]: BuildingSnapshot;
