@@ -81,7 +81,7 @@ export default class UIScene extends Phaser.Scene {
   /**
    * Builds the overlay UI and subscribes to shared game events.
    */
-  public create(): void {
+  public override create(): void {
     this.buildResourceBar();
     this.buildTimeController();
     this.buildKnightPanel();

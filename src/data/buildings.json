@@ -1,0 +1,206 @@
+[
+  {
+    "id": "TrainingGround",
+    "name": "訓練場",
+    "maxLevel": 3,
+    "levels": [
+      {
+        "level": 1,
+        "description": "維持基礎操練，每週提供 8 點訓練資源。",
+        "upgradeCost": {},
+        "effects": {
+          "trainingPointsPerWeek": 8,
+          "injuryRecoveryPerWeek": 0,
+          "intelAccuracyModifier": 0
+        }
+      },
+      {
+        "level": 2,
+        "description": "擴充教官與設備，使訓練效率顯著提升。",
+        "upgradeCost": {
+          "gold": 180,
+          "food": 60
+        },
+        "effects": {
+          "trainingPointsPerWeek": 16,
+          "injuryRecoveryPerWeek": 0,
+          "intelAccuracyModifier": 0
+        }
+      },
+      {
+        "level": 3,
+        "description": "建立戰術模擬場域，訓練點大幅增加。",
+        "upgradeCost": {
+          "gold": 360,
+          "food": 120,
+          "morale": 5
+        },
+        "effects": {
+          "trainingPointsPerWeek": 28,
+          "injuryRecoveryPerWeek": 0,
+          "intelAccuracyModifier": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "Forge",
+    "name": "鍛造坊",
+    "maxLevel": 3,
+    "levels": [
+      {
+        "level": 1,
+        "description": "維護基本裝備，每週提供 4 點訓練加成。",
+        "upgradeCost": {},
+        "effects": {
+          "trainingPointsPerWeek": 4,
+          "injuryRecoveryPerWeek": 0,
+          "intelAccuracyModifier": 0
+        }
+      },
+      {
+        "level": 2,
+        "description": "導入優質鋼材，提供更高的訓練回饋。",
+        "upgradeCost": {
+          "gold": 220,
+          "fame": 2
+        },
+        "effects": {
+          "trainingPointsPerWeek": 8,
+          "injuryRecoveryPerWeek": 0,
+          "intelAccuracyModifier": 0
+        }
+      },
+      {
+        "level": 3,
+        "description": "打造實戰配備，訓練成效持續提升。",
+        "upgradeCost": {
+          "gold": 420,
+          "fame": 4,
+          "morale": 3
+        },
+        "effects": {
+          "trainingPointsPerWeek": 12,
+          "injuryRecoveryPerWeek": 0,
+          "intelAccuracyModifier": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "Infirmary",
+    "name": "醫療所",
+    "maxLevel": 3,
+    "levels": [
+      {
+        "level": 1,
+        "description": "設置基本療傷室，每名騎士每週恢復 4 點傷勢。",
+        "upgradeCost": {},
+        "effects": {
+          "trainingPointsPerWeek": 0,
+          "injuryRecoveryPerWeek": 4,
+          "intelAccuracyModifier": 0
+        }
+      },
+      {
+        "level": 2,
+        "description": "配置專職療養師，大幅縮短療養時間。",
+        "upgradeCost": {
+          "gold": 200,
+          "food": 50
+        },
+        "effects": {
+          "trainingPointsPerWeek": 0,
+          "injuryRecoveryPerWeek": 7,
+          "intelAccuracyModifier": 0
+        }
+      },
+      {
+        "level": 3,
+        "description": "建立再生療法，每名騎士每週恢復 10 點傷勢。",
+        "upgradeCost": {
+          "gold": 380,
+          "food": 120,
+          "fame": 1
+        },
+        "effects": {
+          "trainingPointsPerWeek": 0,
+          "injuryRecoveryPerWeek": 10,
+          "intelAccuracyModifier": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "Watchtower",
+    "name": "哨塔",
+    "maxLevel": 5,
+    "levels": [
+      {
+        "level": 1,
+        "description": "基礎瞭望，情報準確度提升 5%。",
+        "upgradeCost": {},
+        "effects": {
+          "trainingPointsPerWeek": 0,
+          "injuryRecoveryPerWeek": 0,
+          "intelAccuracyModifier": 0.05
+        }
+      },
+      {
+        "level": 2,
+        "description": "加建測距儀，情報準確度提升 8%。",
+        "upgradeCost": {
+          "gold": 160,
+          "morale": 2
+        },
+        "effects": {
+          "trainingPointsPerWeek": 0,
+          "injuryRecoveryPerWeek": 0,
+          "intelAccuracyModifier": 0.08
+        }
+      },
+      {
+        "level": 3,
+        "description": "設置暗號站，情報準確度提升 12%。",
+        "upgradeCost": {
+          "gold": 280,
+          "fame": 1,
+          "morale": 3
+        },
+        "effects": {
+          "trainingPointsPerWeek": 0,
+          "injuryRecoveryPerWeek": 0,
+          "intelAccuracyModifier": 0.12
+        }
+      },
+      {
+        "level": 4,
+        "description": "部署巡邏隊，情報準確度提升 16%。",
+        "upgradeCost": {
+          "gold": 420,
+          "fame": 2,
+          "morale": 4
+        },
+        "effects": {
+          "trainingPointsPerWeek": 0,
+          "injuryRecoveryPerWeek": 0,
+          "intelAccuracyModifier": 0.16
+        }
+      },
+      {
+        "level": 5,
+        "description": "整合預警網，情報準確度提升 20%。",
+        "upgradeCost": {
+          "gold": 560,
+          "fame": 3,
+          "morale": 5
+        },
+        "effects": {
+          "trainingPointsPerWeek": 0,
+          "injuryRecoveryPerWeek": 0,
+          "intelAccuracyModifier": 0.2
+        }
+      }
+    ]
+  }
+]

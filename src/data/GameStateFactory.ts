@@ -1,6 +1,7 @@
 import type { KnightRecord, KnightsState } from "../types/state";
 import type { ResourceSnapshot } from "../systems/ResourceManager";
 import type { GameState, QueueItemState } from "../types/state";
+import { cloneBuildingState, createDefaultBuildingState } from "./BuildingState";
 
 export const GAME_STATE_VERSION = 1;
 
@@ -47,7 +48,8 @@ export const createDefaultGameState = (): GameState => ({
   timeScale: 1,
   resources: { ...DEFAULT_RESOURCES },
   queue: DEFAULT_QUEUE.map((item) => ({ ...item })),
-  knights: createDefaultKnightsState()
+  knights: createDefaultKnightsState(),
+  buildings: createDefaultBuildingState()
 });
 
 /**
@@ -57,6 +59,7 @@ export const cloneGameState = (state: GameState): GameState => ({
   ...state,
   resources: { ...state.resources },
   queue: state.queue.map((item) => ({ ...item })),
-  knights: cloneKnightsState(state.knights)
+  knights: cloneKnightsState(state.knights),
+  buildings: cloneBuildingState(state.buildings)
 });
 
