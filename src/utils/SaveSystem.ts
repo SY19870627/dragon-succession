@@ -1,7 +1,9 @@
 import { KNIGHT_PROFESSIONS, KNIGHT_TRAITS } from "../data/KnightDefinitions";
 import { cloneBuildingState } from "../data/BuildingState";
+import { createDefaultDragonIntelState } from "../data/DragonIntel";
 import type { BuildingState } from "../types/buildings";
 import type {
+  DragonIntelState,
   GameState,
   InventoryItem,
   InventoryState,
@@ -20,6 +22,7 @@ const RESOURCE_KEYS = ["gold", "food", "fame", "morale"] as const;
 const KNIGHT_PROFESSION_IDS = KNIGHT_PROFESSIONS.map((entry) => entry.id);
 const KNIGHT_TRAIT_IDS = KNIGHT_TRAITS.map((entry) => entry.id);
 const DEFAULT_INVENTORY_STATE: InventoryState = { nextInstanceId: 1, items: [] };
+const DEFAULT_DRAGON_INTEL_STATE: DragonIntelState = createDefaultDragonIntelState();
 
 type ResourceKey = (typeof RESOURCE_KEYS)[number];
 const BUILDING_IDS = ["TrainingGround", "Forge", "Infirmary", "Watchtower"] as const;
@@ -229,6 +232,25 @@ const isInventoryItemRecord = (value: unknown): value is InventoryItem => {
   return effectsValid && tagsValid;
 };
 
+const isDragonIntelStateRecord = (value: unknown): value is DragonIntelState => {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  const current = record.current;
+  const threshold = record.threshold;
+  const lairUnlocked = record.lairUnlocked;
+
+  return (
+    typeof current === "number" &&
+    Number.isFinite(current) &&
+    typeof threshold === "number" &&
+    Number.isFinite(threshold) &&
+    typeof lairUnlocked === "boolean"
+  );
+};
+
 const isResourceDelta = (value: unknown): value is ResourceDelta => {
   if (!isPlainObject(value)) {
     return false;
@@ -399,6 +421,7 @@ const isGameStateRecord = (value: unknown): value is GameState => {
   const eventSeed = candidate.eventSeed;
   const pendingEventId = candidate.pendingEventId;
   const eventLog = candidate.eventLog;
+  const dragonIntel = candidate.dragonIntel;
 
   if (
     typeof version !== "number" ||
@@ -414,6 +437,7 @@ const isGameStateRecord = (value: unknown): value is GameState => {
     !isBuildingStateRecord(buildings) ||
     typeof eventSeed !== "number" ||
     !Number.isFinite(eventSeed) ||
+    (typeof dragonIntel !== "undefined" && !isDragonIntelStateRecord(dragonIntel)) ||
     (typeof pendingEventId !== "undefined" && typeof pendingEventId !== "string") ||
     (typeof eventLog !== "undefined" && !isEventLogEntryArray(eventLog))
   ) {
@@ -500,6 +524,7 @@ export default class SaveSystem {
       inventory: SaveSystem.cloneInventoryState(state.inventory ?? DEFAULT_INVENTORY_STATE),
       knights: SaveSystem.cloneKnightsState(state.knights),
       buildings: cloneBuildingState(state.buildings),
+      dragonIntel: SaveSystem.cloneDragonIntelState(state.dragonIntel ?? DEFAULT_DRAGON_INTEL_STATE),
       eventSeed: state.eventSeed,
       pendingEventId: state.pendingEventId,
       eventLog: (state.eventLog ?? []).map(SaveSystem.cloneEventLogEntry)
@@ -528,6 +553,14 @@ export default class SaveSystem {
       candidates: state.candidates.map(SaveSystem.cloneKnightRecord),
       nextId: state.nextId,
       candidateSeed: state.candidateSeed
+    };
+  }
+
+  private static cloneDragonIntelState(state: DragonIntelState): DragonIntelState {
+    return {
+      current: state.current,
+      threshold: state.threshold,
+      lairUnlocked: state.lairUnlocked
     };
   }
 
@@ -570,6 +603,7 @@ export default class SaveSystem {
         inventory: SaveSystem.cloneInventoryState(parsed.inventory ?? DEFAULT_INVENTORY_STATE),
         knights: SaveSystem.cloneKnightsState(parsed.knights),
         buildings: cloneBuildingState(parsed.buildings),
+        dragonIntel: SaveSystem.cloneDragonIntelState(parsed.dragonIntel ?? DEFAULT_DRAGON_INTEL_STATE),
         eventSeed: parsed.eventSeed,
         pendingEventId: parsed.pendingEventId,
         eventLog: (parsed.eventLog ?? []).map(SaveSystem.cloneEventLogEntry)

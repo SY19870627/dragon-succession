@@ -19,6 +19,11 @@ export interface EncounterDefinition {
   readonly biome: BiomeType;
   /** Base probability (0-1) that intel is recovered. */
   readonly intelChance: number;
+  /** Optional intelligence reward range granted when the encounter is cleared. */
+  readonly dragonIntelRange?: {
+    readonly min: number;
+    readonly max: number;
+  };
   /** Loot table entries rolled after successful combat. */
   readonly lootTable: ReadonlyArray<LootEntry>;
 }
@@ -76,10 +81,24 @@ export interface GeneratedLoot {
 }
 
 /**
+ * Raw intel discovery emitted by the battle simulator before accumulation.
+ */
+export interface IntelDiscovery {
+  /** Narrative description of the findings. */
+  readonly description: string;
+  /** Dragon intelligence fragments awarded by this discovery. */
+  readonly dragonIntelGained: number;
+}
+
+/**
  * Optional intel gained from scouting or interactions.
  */
 export interface IntelReport {
   readonly description: string;
+  readonly dragonIntelGained: number;
+  readonly totalDragonIntel: number;
+  readonly threshold: number;
+  readonly thresholdReached: boolean;
 }
 
 /**
