@@ -2,6 +2,7 @@ import Phaser from "phaser";
 
 import type { BuildingSnapshot } from "../types/buildings";
 import type { EconomyForecast } from "../types/economy";
+import type { EventInstance, EventLogEntry, EventResolution } from "../types/events";
 import type { InventoryState, KnightsSnapshot } from "../types/state";
 import type { ResourceSnapshot } from "./ResourceManager";
 
@@ -12,8 +13,12 @@ export const GameEvent = {
   KnightStateUpdated: "knight:stateUpdated",
   InventoryUpdated: "inventory:updated",
   WeekAdvanced: "time:weekAdvanced",
+  WeekReadyForEconomy: "time:weekReadyForEconomy",
   EconomyForecastUpdated: "economy:forecastUpdated",
-  BuildingsUpdated: "building:updated"
+  BuildingsUpdated: "building:updated",
+  NarrativeEventPresented: "event:presented",
+  NarrativeEventResolved: "event:resolved",
+  NarrativeEventLogUpdated: "event:logUpdated"
 } as const;
 
 export type GameEventKey = (typeof GameEvent)[keyof typeof GameEvent];
@@ -35,8 +40,12 @@ type GameEventMap = {
   [GameEvent.KnightStateUpdated]: KnightsSnapshot;
   [GameEvent.InventoryUpdated]: InventoryState;
   [GameEvent.WeekAdvanced]: WeekTickPayload;
+  [GameEvent.WeekReadyForEconomy]: WeekTickPayload;
   [GameEvent.EconomyForecastUpdated]: EconomyForecast;
   [GameEvent.BuildingsUpdated]: BuildingSnapshot;
+  [GameEvent.NarrativeEventPresented]: EventInstance;
+  [GameEvent.NarrativeEventResolved]: EventResolution;
+  [GameEvent.NarrativeEventLogUpdated]: EventLogEntry;
 };
 
 type EventPayloadTuple<K extends GameEventKey> = GameEventMap[K] extends void

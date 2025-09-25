@@ -23,6 +23,13 @@ export default class RNG {
   }
 
   /**
+   * Exposes the current internal state for persistence.
+   */
+  public getState(): number {
+    return this.state;
+  }
+
+  /**
    * Coerces arbitrary seed input into the valid domain for the generator.
    */
   private static normalizeSeed(seed: number): number {

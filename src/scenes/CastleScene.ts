@@ -17,7 +17,9 @@ import buildingSystem from "../systems/BuildingSystem";
 import resourceManager, { RESOURCE_TYPES, type ResourceType } from "../systems/ResourceManager";
 import inventorySystem from "../systems/InventorySystem";
 import timeSystem from "../systems/TimeSystem";
+import eventSystem from "../systems/EventSystem";
 import SaveSystem from "../utils/SaveSystem";
+import type { EventLogEntry } from "../types/events";
 
 const BANNER_COLORS = [0xff6b6b, 0xfeca57, 0x1dd1a1];
 const DISPATCH_PANEL_TEXTURE = "dispatch-panel-bg";
@@ -126,6 +128,8 @@ export default class CastleScene extends Phaser.Scene {
 
     EventBus.on(GameEvent.KnightStateUpdated, this.handleKnightStateUpdated, this);
     EventBus.on(GameEvent.BuildingsUpdated, this.handleBuildingsUpdated, this);
+    EventBus.on(GameEvent.NarrativeEventResolved, this.handleNarrativeEventResolved, this);
+    EventBus.on(GameEvent.NarrativeEventLogUpdated, this.handleNarrativeEventLogUpdated, this);
     this.events.on(Phaser.Scenes.Events.RESUME, this.handleSceneResumed, this);
     this.events.on(Phaser.Scenes.Events.WAKE, this.handleSceneResumed, this);
 
@@ -133,6 +137,8 @@ export default class CastleScene extends Phaser.Scene {
       this.teardownSystems();
       EventBus.off(GameEvent.KnightStateUpdated, this.handleKnightStateUpdated, this);
       EventBus.off(GameEvent.BuildingsUpdated, this.handleBuildingsUpdated, this);
+      EventBus.off(GameEvent.NarrativeEventResolved, this.handleNarrativeEventResolved, this);
+      EventBus.off(GameEvent.NarrativeEventLogUpdated, this.handleNarrativeEventLogUpdated, this);
       this.events.off(Phaser.Scenes.Events.RESUME, this.handleSceneResumed, this);
       this.events.off(Phaser.Scenes.Events.WAKE, this.handleSceneResumed, this);
     });
@@ -168,7 +174,13 @@ export default class CastleScene extends Phaser.Scene {
     inventorySystem.initialize(state.inventory);
     knightManager.initialize(state.knights);
     buildingSystem.initialize(state.buildings);
+    eventSystem.initialize({
+      eventSeed: state.eventSeed,
+      pendingEventId: state.pendingEventId,
+      eventLog: state.eventLog
+    });
     economySystem.initialize();
+    this.syncEventStateFromSystem();
 
     if (!this.scene.isActive(SceneKeys.UI)) {
       this.scene.launch(SceneKeys.UI);
@@ -187,6 +199,7 @@ export default class CastleScene extends Phaser.Scene {
       this.scene.stop(SceneKeys.UI);
     }
 
+    eventSystem.shutdown();
     buildingSystem.shutdown();
     economySystem.shutdown();
     inventorySystem.shutdown();
@@ -988,17 +1001,38 @@ export default class CastleScene extends Phaser.Scene {
   }
 
   private captureGameStateSnapshot(): GameState {
+    const eventSnapshot = eventSystem.getState();
     const snapshot: GameState = {
       ...this.currentState,
       timeScale: timeSystem.getTimeScale(),
       resources: resourceManager.getSnapshot(),
       queue: this.currentState.queue.map((item) => ({ ...item })),
       knights: knightManager.getState(),
-      buildings: buildingSystem.getState()
+      buildings: buildingSystem.getState(),
+      eventSeed: eventSnapshot.eventSeed,
+      pendingEventId: eventSnapshot.pendingEventId,
+      eventLog: eventSnapshot.eventLog.map((entry) => this.cloneEventLogEntry(entry))
     };
 
     this.currentState = cloneGameState(snapshot);
     return snapshot;
+  }
+
+  private cloneEventLogEntry(entry: EventLogEntry): EventLogEntry {
+    return {
+      ...entry,
+      effects: entry.effects.map((effect) => ({ ...effect }))
+    };
+  }
+
+  private syncEventStateFromSystem(): void {
+    const eventSnapshot = eventSystem.getState();
+    this.currentState = {
+      ...this.currentState,
+      eventSeed: eventSnapshot.eventSeed,
+      pendingEventId: eventSnapshot.pendingEventId,
+      eventLog: eventSnapshot.eventLog.map((entry) => this.cloneEventLogEntry(entry))
+    };
   }
 
   private handleBuildingsUpdated(snapshot: BuildingSnapshot): void {
@@ -1012,6 +1046,14 @@ export default class CastleScene extends Phaser.Scene {
 
   private handleKnightStateUpdated(): void {
     this.refreshDispatchPanel();
+  }
+
+  private handleNarrativeEventResolved(): void {
+    this.syncEventStateFromSystem();
+  }
+
+  private handleNarrativeEventLogUpdated(): void {
+    this.syncEventStateFromSystem();
   }
 
   private handleSceneResumed(): void {

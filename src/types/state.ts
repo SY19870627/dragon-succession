@@ -1,6 +1,7 @@
 import type { ResourceSnapshot } from "../systems/ResourceManager";
 import type { BuildingState } from "./buildings";
 import type { Item } from "./game";
+import type { EventLogEntry } from "./events";
 
 /**
  * Identifies the equipment slots available to a knight.
@@ -140,4 +141,10 @@ export interface GameState {
   knights: KnightsState;
   /** Player progression for castle infrastructure. */
   buildings: BuildingState;
+  /** Seed controlling deterministic weekly narrative event rolls. */
+  eventSeed: number;
+  /** Identifier for the next forced narrative event, if scheduled. */
+  pendingEventId?: string;
+  /** Chronological record of resolved narrative events. */
+  eventLog: EventLogEntry[];
 }

@@ -10,7 +10,8 @@ import type {
   KnightsState,
   QueueItemState
 } from "../types/state";
-import type { ItemAffix } from "../types/game";
+import type { ItemAffix, ResourceDelta } from "../types/game";
+import type { EventLogEntry } from "../types/events";
 
 const STORAGE_PREFIX = "dragon-succession:slot:";
 const INDEX_KEY = "dragon-succession:slots";
@@ -228,6 +229,65 @@ const isInventoryItemRecord = (value: unknown): value is InventoryItem => {
   return effectsValid && tagsValid;
 };
 
+const isResourceDelta = (value: unknown): value is ResourceDelta => {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  const resource = record.resource;
+  const amount = record.amount;
+
+  return (
+    typeof resource === "string" &&
+    RESOURCE_KEYS.includes(resource as ResourceKey) &&
+    typeof amount === "number" &&
+    Number.isFinite(amount)
+  );
+};
+
+const isResourceDeltaArray = (value: unknown): value is ResourceDelta[] =>
+  Array.isArray(value) && value.every((entry) => isResourceDelta(entry));
+
+const isEventLogEntry = (value: unknown): value is EventLogEntry => {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  const eventId = record.eventId;
+  const eventTitle = record.eventTitle;
+  const choiceId = record.choiceId;
+  const choiceLabel = record.choiceLabel;
+  const outcome = record.outcome;
+  const description = record.description;
+  const effects = record.effects;
+  const weekNumber = record.weekNumber;
+  const timestamp = record.timestamp;
+  const followUpEventId = record.followUpEventId;
+
+  const outcomeValid = outcome === "success" || outcome === "failure";
+  const followUpValid = typeof followUpEventId === "undefined" || typeof followUpEventId === "string";
+
+  return (
+    typeof eventId === "string" &&
+    typeof eventTitle === "string" &&
+    typeof choiceId === "string" &&
+    typeof choiceLabel === "string" &&
+    outcomeValid &&
+    typeof description === "string" &&
+    isResourceDeltaArray(effects) &&
+    typeof weekNumber === "number" &&
+    Number.isFinite(weekNumber) &&
+    typeof timestamp === "number" &&
+    Number.isFinite(timestamp) &&
+    followUpValid
+  );
+};
+
+const isEventLogEntryArray = (value: unknown): value is EventLogEntry[] =>
+  Array.isArray(value) && value.every((entry) => isEventLogEntry(entry));
+
 const isInventoryStateRecord = (value: unknown): value is InventoryState => {
   if (!isPlainObject(value)) {
     return false;
@@ -336,6 +396,9 @@ const isGameStateRecord = (value: unknown): value is GameState => {
   const inventory = candidate.inventory;
   const knights = candidate.knights;
   const buildings = candidate.buildings;
+  const eventSeed = candidate.eventSeed;
+  const pendingEventId = candidate.pendingEventId;
+  const eventLog = candidate.eventLog;
 
   if (
     typeof version !== "number" ||
@@ -348,7 +411,11 @@ const isGameStateRecord = (value: unknown): value is GameState => {
     !Array.isArray(queue) ||
     (inventory !== undefined && !isInventoryStateRecord(inventory)) ||
     !isKnightsStateRecord(knights) ||
-    !isBuildingStateRecord(buildings)
+    !isBuildingStateRecord(buildings) ||
+    typeof eventSeed !== "number" ||
+    !Number.isFinite(eventSeed) ||
+    (typeof pendingEventId !== "undefined" && typeof pendingEventId !== "string") ||
+    (typeof eventLog !== "undefined" && !isEventLogEntryArray(eventLog))
   ) {
     return false;
   }
@@ -432,7 +499,10 @@ export default class SaveSystem {
       queue: state.queue.map((item) => ({ ...item })),
       inventory: SaveSystem.cloneInventoryState(state.inventory ?? DEFAULT_INVENTORY_STATE),
       knights: SaveSystem.cloneKnightsState(state.knights),
-      buildings: cloneBuildingState(state.buildings)
+      buildings: cloneBuildingState(state.buildings),
+      eventSeed: state.eventSeed,
+      pendingEventId: state.pendingEventId,
+      eventLog: (state.eventLog ?? []).map(SaveSystem.cloneEventLogEntry)
     };
   }
 
@@ -473,6 +543,13 @@ export default class SaveSystem {
     };
   }
 
+  private static cloneEventLogEntry(entry: EventLogEntry): EventLogEntry {
+    return {
+      ...entry,
+      effects: entry.effects.map((effect) => ({ ...effect }))
+    };
+  }
+
   private static readSlot(slotId: string): GameState | null {
     const raw = adapter.getItem(SaveSystem.toSlotKey(slotId));
     if (raw === null) {
@@ -492,7 +569,10 @@ export default class SaveSystem {
         queue: parsed.queue.map((item) => ({ ...item })),
         inventory: SaveSystem.cloneInventoryState(parsed.inventory ?? DEFAULT_INVENTORY_STATE),
         knights: SaveSystem.cloneKnightsState(parsed.knights),
-        buildings: cloneBuildingState(parsed.buildings)
+        buildings: cloneBuildingState(parsed.buildings),
+        eventSeed: parsed.eventSeed,
+        pendingEventId: parsed.pendingEventId,
+        eventLog: (parsed.eventLog ?? []).map(SaveSystem.cloneEventLogEntry)
       };
     } catch {
       adapter.removeItem(SaveSystem.toSlotKey(slotId));
