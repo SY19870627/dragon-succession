@@ -84,7 +84,7 @@ class EconomySystem {
       this.recalculateForecast();
     };
 
-    EventBus.on(GameEvent.WeekAdvanced, this.weeklyTickListener, this);
+    EventBus.on(GameEvent.WeekReadyForEconomy, this.weeklyTickListener, this);
     EventBus.on(GameEvent.ResourcesUpdated, this.resourceListener, this);
     EventBus.on(GameEvent.KnightStateUpdated, this.knightListener, this);
 
@@ -101,7 +101,7 @@ class EconomySystem {
     }
 
     if (this.weeklyTickListener) {
-      EventBus.off(GameEvent.WeekAdvanced, this.weeklyTickListener, this);
+      EventBus.off(GameEvent.WeekReadyForEconomy, this.weeklyTickListener, this);
       this.weeklyTickListener = undefined;
     }
 

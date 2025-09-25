@@ -5,9 +5,11 @@ import EventBus, { GameEvent } from "../systems/EventBus";
 import resourceManager, { ResourceSnapshot, ResourceType } from "../systems/ResourceManager";
 import timeSystem from "../systems/TimeSystem";
 import economySystem from "../systems/EconomySystem";
+import eventSystem from "../systems/EventSystem";
 import type { EconomyForecast, WeeklyProjection } from "../types/economy";
 import KnightListPanel from "./ui/KnightListPanel";
 import CraftingPanel from "./ui/CraftingPanel";
+import type { EventInstance, EventResolution } from "../types/events";
 
 const PANEL_BACKGROUND_COLOR = 0x101c3a;
 const PANEL_STROKE_COLOR = 0xffffff;
@@ -75,12 +77,24 @@ export default class UIScene extends Phaser.Scene {
   private craftingPanel?: CraftingPanel;
   private craftingToggle?: PanelToggleButton;
   private craftingPanelVisible: boolean;
+  private eventOverlay?: Phaser.GameObjects.Rectangle;
+  private eventModal?: Phaser.GameObjects.Container;
+  private eventTitleText?: Phaser.GameObjects.Text;
+  private eventPromptText?: Phaser.GameObjects.Text;
+  private eventResultText?: Phaser.GameObjects.Text;
+  private eventCloseButton?: Phaser.GameObjects.Container;
+  private readonly eventChoiceButtons: Phaser.GameObjects.Container[];
+  private eventPresentedListener?: (instance: EventInstance) => void;
+  private eventResolvedListener?: (resolution: EventResolution) => void;
+  private activeEvent: EventInstance | null;
 
   public constructor() {
     super(UIScene.KEY);
     this.timeButtons = [];
     this.knightPanelVisible = false;
     this.craftingPanelVisible = false;
+    this.eventChoiceButtons = [];
+    this.activeEvent = null;
   }
 
   /**
@@ -93,6 +107,7 @@ export default class UIScene extends Phaser.Scene {
     this.buildKnightToggle();
     this.buildCraftingPanel();
     this.buildCraftingToggle();
+    this.buildEventModal();
     this.registerEventListeners();
 
     this.updateKnightToggleAppearance();
@@ -100,6 +115,11 @@ export default class UIScene extends Phaser.Scene {
     this.updateResourceDisplay(resourceManager.getSnapshot());
     this.updateEconomyForecast(economySystem.getWeeklyForecast());
     this.highlightTimeButtons(timeSystem.getTimeScale());
+
+    const pendingEvent = eventSystem.getActiveEvent();
+    if (pendingEvent) {
+      this.handleNarrativeEventPresented(pendingEvent);
+    }
   }
 
   /**
@@ -345,6 +365,103 @@ export default class UIScene extends Phaser.Scene {
   }
 
   /**
+   * Builds the modal container used to display weekly narrative events.
+   */
+  private buildEventModal(): void {
+    const overlay = this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 0.55);
+    overlay.setOrigin(0, 0);
+    overlay.setDepth(1950);
+    overlay.setScrollFactor(0);
+    overlay.setVisible(false);
+    overlay.setInteractive({ useHandCursor: false });
+    this.eventOverlay = overlay;
+
+    const width = 540;
+    const height = 380;
+    const x = (this.scale.width - width) / 2;
+    const y = (this.scale.height - height) / 2;
+    const container = this.add.container(x, y);
+    container.setDepth(2000);
+    container.setScrollFactor(0);
+    container.setVisible(false);
+
+    const background = this.add.rectangle(0, 0, width, height, PANEL_BACKGROUND_COLOR, 0.96);
+    background.setOrigin(0, 0);
+    background.setStrokeStyle(2, PANEL_STROKE_COLOR, 0.6);
+
+    const title = this.add.text(width / 2, 28, "", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "24px",
+      fontStyle: "bold",
+      color: TEXT_PRIMARY_COLOR
+    });
+    title.setOrigin(0.5, 0.5);
+
+    const prompt = this.add.text(24, 68, "", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "18px",
+      color: TEXT_PRIMARY_COLOR,
+      wordWrap: { width: width - 48 }
+    });
+    prompt.setOrigin(0, 0);
+
+    const result = this.add.text(24, height - 120, "", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "17px",
+      color: TEXT_MUTED_COLOR,
+      wordWrap: { width: width - 48 }
+    });
+    result.setOrigin(0, 0);
+    result.setVisible(false);
+
+    const closeButtonWidth = 160;
+    const closeButtonHeight = 44;
+    const closeButtonY = height - closeButtonHeight - 20;
+    const closeContainer = this.add.container(width / 2 - closeButtonWidth / 2, closeButtonY);
+
+    const closeBackground = this.add.rectangle(0, 0, closeButtonWidth, closeButtonHeight, BUTTON_IDLE_COLOR, 1);
+    closeBackground.setOrigin(0, 0);
+    closeBackground.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.3);
+    closeBackground.setInteractive({ useHandCursor: true });
+
+    const closeLabel = this.add.text(closeButtonWidth / 2, closeButtonHeight / 2, "繼續", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "20px",
+      color: TEXT_PRIMARY_COLOR,
+      fontStyle: "bold"
+    });
+    closeLabel.setOrigin(0.5);
+
+    closeBackground.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
+      closeBackground.setFillStyle(BUTTON_HOVER_COLOR, 1);
+    });
+
+    closeBackground.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
+      closeBackground.setFillStyle(BUTTON_IDLE_COLOR, 1);
+    });
+
+    closeBackground.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => {
+      this.hideEventModal();
+    });
+
+    closeContainer.add(closeBackground);
+    closeContainer.add(closeLabel);
+    closeContainer.setVisible(false);
+
+    container.add(background);
+    container.add(title);
+    container.add(prompt);
+    container.add(result);
+    container.add(closeContainer);
+
+    this.eventModal = container;
+    this.eventTitleText = title;
+    this.eventPromptText = prompt;
+    this.eventResultText = result;
+    this.eventCloseButton = closeContainer;
+  }
+
+  /**
    * Subscribes to resource and time events emitted through the shared event bus.
    */
   private registerEventListeners(): void {
@@ -360,9 +477,19 @@ export default class UIScene extends Phaser.Scene {
       this.updateEconomyForecast(forecast);
     };
 
+    this.eventPresentedListener = (instance: EventInstance) => {
+      this.handleNarrativeEventPresented(instance);
+    };
+
+    this.eventResolvedListener = (resolution: EventResolution) => {
+      this.handleNarrativeEventResolved(resolution);
+    };
+
     EventBus.on(GameEvent.ResourcesUpdated, this.resourceListener, this);
     EventBus.on(GameEvent.TimeScaleChanged, this.timeScaleListener, this);
     EventBus.on(GameEvent.EconomyForecastUpdated, this.economyListener, this);
+    EventBus.on(GameEvent.NarrativeEventPresented, this.eventPresentedListener, this);
+    EventBus.on(GameEvent.NarrativeEventResolved, this.eventResolvedListener, this);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.unregisterEventListeners();
@@ -385,6 +512,16 @@ export default class UIScene extends Phaser.Scene {
       EventBus.off(GameEvent.EconomyForecastUpdated, this.economyListener, this);
     }
 
+    if (this.eventPresentedListener) {
+      EventBus.off(GameEvent.NarrativeEventPresented, this.eventPresentedListener, this);
+      this.eventPresentedListener = undefined;
+    }
+
+    if (this.eventResolvedListener) {
+      EventBus.off(GameEvent.NarrativeEventResolved, this.eventResolvedListener, this);
+      this.eventResolvedListener = undefined;
+    }
+
     if (this.knightToggle) {
       this.knightToggle.container.destroy(true);
       this.knightToggle = undefined;
@@ -404,6 +541,24 @@ export default class UIScene extends Phaser.Scene {
       this.craftingPanel.destroy();
       this.craftingPanel = undefined;
     }
+
+    this.clearEventChoices();
+
+    if (this.eventModal) {
+      this.eventModal.destroy(true);
+      this.eventModal = undefined;
+    }
+
+    if (this.eventOverlay) {
+      this.eventOverlay.destroy();
+      this.eventOverlay = undefined;
+    }
+
+    this.eventTitleText = undefined;
+    this.eventPromptText = undefined;
+    this.eventResultText = undefined;
+    this.eventCloseButton = undefined;
+    this.activeEvent = null;
 
     this.timeButtons.length = 0;
     this.knightPanelVisible = false;
@@ -458,6 +613,222 @@ export default class UIScene extends Phaser.Scene {
         : "";
 
     return `${label} - Week ${projection.weekNumber}: ${segments.join("  ")}${deficitSuffix}`;
+  }
+
+  /**
+   * Handles presentation of a newly drawn event instance.
+   */
+  private handleNarrativeEventPresented(instance: EventInstance): void {
+    this.displayEventInstance(instance);
+  }
+
+  /**
+   * Updates the modal when an event choice resolves.
+   */
+  private handleNarrativeEventResolved(resolution: EventResolution): void {
+    if (!this.eventResultText) {
+      return;
+    }
+
+    const summary = this.composeEventResolutionText(resolution);
+    this.eventResultText.setText(summary);
+    this.eventResultText.setColor(
+      resolution.outcome === "success" ? TEXT_PRIMARY_COLOR : TEXT_WARNING_COLOR
+    );
+    this.eventResultText.setVisible(true);
+    this.setEventChoicesEnabled(false);
+
+    if (this.eventCloseButton) {
+      this.eventCloseButton.setVisible(true);
+    }
+  }
+
+  /**
+   * Displays the supplied event within the modal container.
+   */
+  private displayEventInstance(instance: EventInstance): void {
+    this.activeEvent = instance;
+
+    if (!this.eventModal || !this.eventTitleText || !this.eventPromptText) {
+      return;
+    }
+
+    if (this.eventOverlay) {
+      this.eventOverlay.setVisible(true);
+      this.eventOverlay.setInteractive({ useHandCursor: false });
+    }
+
+    this.eventModal.setVisible(true);
+    this.eventTitleText.setText(instance.title);
+    this.eventPromptText.setText(instance.prompt);
+
+    if (this.eventResultText) {
+      this.eventResultText.setVisible(false);
+      this.eventResultText.setText("");
+    }
+
+    if (this.eventCloseButton) {
+      this.eventCloseButton.setVisible(false);
+    }
+
+    this.clearEventChoices();
+
+    instance.choices.forEach((choice, index) => {
+      const button = this.createEventChoiceButton(choice, index);
+      this.eventChoiceButtons.push(button);
+      this.eventModal?.add(button);
+    });
+
+    this.setEventChoicesEnabled(true);
+  }
+
+  /**
+   * Destroys existing choice buttons prior to repopulating the modal.
+   */
+  private clearEventChoices(): void {
+    while (this.eventChoiceButtons.length > 0) {
+      const button = this.eventChoiceButtons.pop();
+      button?.destroy(true);
+    }
+  }
+
+  /**
+   * Creates an interactive button for an event choice.
+   */
+  private createEventChoiceButton(choice: EventInstance["choices"][number], index: number): Phaser.GameObjects.Container {
+    const buttonWidth = 480;
+    const buttonHeight = 54;
+    const spacing = 12;
+    const offsetX = 30;
+    const offsetY = 150 + index * (buttonHeight + spacing);
+
+    const container = this.add.container(offsetX, offsetY);
+
+    const background = this.add.rectangle(0, 0, buttonWidth, buttonHeight, BUTTON_IDLE_COLOR, 1);
+    background.setOrigin(0, 0);
+    background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.25);
+    background.setInteractive({ useHandCursor: true });
+
+    const label = this.add.text(buttonWidth / 2, buttonHeight / 2, choice.label, {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "18px",
+      color: TEXT_PRIMARY_COLOR
+    });
+    label.setOrigin(0.5);
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
+      if (container.getData("enabled") !== false) {
+        background.setFillStyle(BUTTON_HOVER_COLOR, 1);
+      }
+    });
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
+      if (container.getData("enabled") !== false) {
+        background.setFillStyle(BUTTON_IDLE_COLOR, 1);
+      }
+    });
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => {
+      this.handleEventChoiceSelected(choice.id);
+    });
+
+    container.add(background);
+    container.add(label);
+    container.setDataEnabled();
+    container.setData("choiceId", choice.id);
+    container.setData("background", background);
+    container.setData("label", label);
+    container.setData("enabled", true);
+
+    return container;
+  }
+
+  /**
+   * Enables or disables the choice buttons after a selection is made.
+   */
+  private setEventChoicesEnabled(enabled: boolean): void {
+    this.eventChoiceButtons.forEach((container) => {
+      const background = container.getData("background") as Phaser.GameObjects.Rectangle | undefined;
+      const label = container.getData("label") as Phaser.GameObjects.Text | undefined;
+
+      if (!background || !label) {
+        return;
+      }
+
+      if (enabled) {
+        background.setInteractive({ useHandCursor: true });
+        background.setFillStyle(BUTTON_IDLE_COLOR, 1);
+        label.setColor(TEXT_PRIMARY_COLOR);
+      } else {
+        background.disableInteractive();
+      }
+
+      container.setData("enabled", enabled);
+    });
+  }
+
+  /**
+   * Handles pointer interaction when a choice button is activated.
+   */
+  private handleEventChoiceSelected(choiceId: string): void {
+    const selected = this.eventChoiceButtons.find((container) => container.getData("choiceId") === choiceId);
+    if (selected) {
+      const background = selected.getData("background") as Phaser.GameObjects.Rectangle | undefined;
+      const label = selected.getData("label") as Phaser.GameObjects.Text | undefined;
+      background?.setFillStyle(BUTTON_ACTIVE_COLOR, 1);
+      label?.setColor(BUTTON_ACTIVE_TEXT_COLOR);
+    }
+
+    this.setEventChoicesEnabled(false);
+    eventSystem.applyEventChoice(choiceId);
+  }
+
+  /**
+   * Converts an event resolution into a multi-line description for display.
+   */
+  private composeEventResolutionText(resolution: EventResolution): string {
+    const lines: string[] = [];
+    lines.push(resolution.outcome === "success" ? "成功" : "失敗");
+    lines.push(resolution.description);
+
+    if (resolution.effects.length > 0) {
+      lines.push("");
+      resolution.effects.forEach((effect) => {
+        const label = RESOURCE_LABEL[effect.resource as ResourceType] ?? effect.resource;
+        const isInteger = Math.abs(effect.amount - Math.round(effect.amount)) < 0.0001;
+        const valueText = isInteger ? Math.round(effect.amount).toString() : effect.amount.toFixed(1);
+        const prefix = effect.amount >= 0 ? "+" : "";
+        lines.push(`${label} ${prefix}${valueText}`);
+      });
+    }
+
+    return lines.join("\n");
+  }
+
+  /**
+   * Hides the modal and clears the active event reference.
+   */
+  private hideEventModal(): void {
+    this.activeEvent = null;
+    this.clearEventChoices();
+
+    if (this.eventModal) {
+      this.eventModal.setVisible(false);
+    }
+
+    if (this.eventOverlay) {
+      this.eventOverlay.setVisible(false);
+      this.eventOverlay.disableInteractive();
+    }
+
+    if (this.eventResultText) {
+      this.eventResultText.setVisible(false);
+      this.eventResultText.setText("");
+    }
+
+    if (this.eventCloseButton) {
+      this.eventCloseButton.setVisible(false);
+    }
   }
 
 

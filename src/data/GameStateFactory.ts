@@ -1,4 +1,5 @@
 import type { InventoryItem, InventoryState, KnightRecord, KnightsState } from "../types/state";
+import type { EventLogEntry } from "../types/events";
 import type { ResourceSnapshot } from "../systems/ResourceManager";
 import type { GameState, QueueItemState } from "../types/state";
 import { cloneBuildingState, createDefaultBuildingState } from "./BuildingState";
@@ -30,6 +31,13 @@ const createDefaultKnightsState = (): KnightsState => ({
   candidates: [],
   nextId: 1,
   candidateSeed: Math.floor(Date.now() % 1_000_000_000) + 1
+});
+
+const createDefaultEventLog = (): EventLogEntry[] => [];
+
+const cloneEventLogEntry = (entry: EventLogEntry): EventLogEntry => ({
+  ...entry,
+  effects: entry.effects.map((effect) => ({ ...effect }))
 });
 
 const cloneKnightRecord = (knight: KnightRecord): KnightRecord => ({
@@ -71,7 +79,10 @@ export const createDefaultGameState = (): GameState => ({
   queue: DEFAULT_QUEUE.map((item) => ({ ...item })),
   inventory: cloneInventoryState(DEFAULT_INVENTORY),
   knights: createDefaultKnightsState(),
-  buildings: createDefaultBuildingState()
+  buildings: createDefaultBuildingState(),
+  eventSeed: Math.floor(Date.now() % 1_000_000_000) + 7,
+  pendingEventId: undefined,
+  eventLog: createDefaultEventLog()
 });
 
 /**
@@ -83,6 +94,9 @@ export const cloneGameState = (state: GameState): GameState => ({
   queue: state.queue.map((item) => ({ ...item })),
   inventory: cloneInventoryState(state.inventory),
   knights: cloneKnightsState(state.knights),
-  buildings: cloneBuildingState(state.buildings)
+  buildings: cloneBuildingState(state.buildings),
+  eventSeed: state.eventSeed,
+  pendingEventId: state.pendingEventId,
+  eventLog: state.eventLog.map(cloneEventLogEntry)
 });
 
