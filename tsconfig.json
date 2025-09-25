@@ -19,8 +19,9 @@
     "paths": {
       "@/*": ["./*"],
       "vite/client": ["types/vite-client"],
-      "phaser": ["types/phaser"]
+      "phaser": ["types/phaser"],
+      "electron": ["types/electron/index"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "sw.ts", "electron", "src/types/node"]
 }
