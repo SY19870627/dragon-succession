@@ -1,4 +1,5 @@
 import type { ResourceSnapshot } from "../systems/ResourceManager";
+import type { BuildingState } from "./buildings";
 
 /**
  * Identifiers describing the combat role a knight specializes in.
@@ -96,4 +97,6 @@ export interface GameState {
   queue: QueueItemState[];
   /** Knights roster, candidate listings, and generator metadata. */
   knights: KnightsState;
+  /** Player progression for castle infrastructure. */
+  buildings: BuildingState;
 }

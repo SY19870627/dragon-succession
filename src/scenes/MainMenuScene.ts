@@ -58,7 +58,7 @@ export default class MainMenuScene extends Phaser.Scene {
   /**
    * Creates menu elements, ambient sparkles, and save management UI.
    */
-  public create(): void {
+  public override create(): void {
     const { width, height } = this.scale;
     this.cameras.main.setBackgroundColor(0x1b1b2f);
 

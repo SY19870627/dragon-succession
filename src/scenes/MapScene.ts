@@ -39,7 +39,7 @@ export default class MapScene extends Phaser.Scene {
   /**
    * Builds static map presentation and interactive nodes.
    */
-  public create(): void {
+  public override create(): void {
     this.cameras.main.setBackgroundColor(0x0f172a);
     this.drawBackdrop();
     this.drawNodes();
