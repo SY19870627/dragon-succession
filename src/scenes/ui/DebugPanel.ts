@@ -1,0 +1,368 @@
+import Phaser from "phaser";
+
+import balanceManager from "../../systems/BalanceManager";
+import EventBus, { GameEvent } from "../../systems/EventBus";
+import telemetry from "../../systems/Telemetry";
+import type { BalanceConfig } from "../../types/balance";
+import type { TelemetrySnapshot } from "../../systems/Telemetry";
+
+const PANEL_BACKGROUND_COLOR = 0x101c3a;
+const PANEL_STROKE_COLOR = 0xffffff;
+const TEXT_PRIMARY_COLOR = "#f0f5ff";
+const TEXT_MUTED_COLOR = "#b8c4e3";
+const BUTTON_IDLE_COLOR = 0x1f2f4a;
+const BUTTON_HOVER_COLOR = 0x29415f;
+const BUTTON_TEXT_COLOR = "#f7fbff";
+const BUTTON_WIDTH = 100;
+const BUTTON_HEIGHT = 34;
+const SLIDER_TRACK_COLOR = 0x2a3b59;
+const SLIDER_THUMB_COLOR = 0xfacc15;
+
+interface SliderControl {
+  readonly container: Phaser.GameObjects.Container;
+  readonly track: Phaser.GameObjects.Rectangle;
+  readonly thumb: Phaser.GameObjects.Rectangle;
+  readonly valueText: Phaser.GameObjects.Text;
+  readonly min: number;
+  readonly max: number;
+  value: number;
+  readonly onChange: (value: number) => void;
+}
+
+interface PointerLike {
+  readonly worldX?: number;
+}
+
+const clamp = (value: number, min: number, max: number): number => {
+  return Math.min(max, Math.max(min, value));
+};
+
+/**
+ * Developer oriented control surface that surfaces telemetry and balance tools.
+ */
+export default class DebugPanel extends Phaser.GameObjects.Container {
+  private readonly statsText: Phaser.GameObjects.Text;
+  private readonly feedbackText: Phaser.GameObjects.Text;
+  private readonly difficultySlider: SliderControl;
+  private readonly lootSlider: SliderControl;
+  private telemetryListener?: (snapshot: TelemetrySnapshot) => void;
+  private balanceListener?: (config: BalanceConfig) => void;
+
+  public constructor(scene: Phaser.Scene, x: number, y: number) {
+    super(scene, x, y);
+
+    const panelWidth = 360;
+    const panelHeight = 300;
+
+    const background = scene.add.rectangle(0, 0, panelWidth, panelHeight, PANEL_BACKGROUND_COLOR, 0.92);
+    background.setOrigin(0, 0);
+    background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
+
+    const title = scene.add.text(16, 16, "Debug Console", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "20px",
+      fontStyle: "bold",
+      color: TEXT_PRIMARY_COLOR
+    });
+
+    const subtitle = scene.add.text(16, 40, "Telemetry snapshots & live balance hooks.", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "14px",
+      color: TEXT_MUTED_COLOR
+    });
+
+    this.statsText = scene.add.text(16, 70, "", {
+      fontFamily: "Consolas, 'Courier New', monospace",
+      fontSize: "15px",
+      color: TEXT_PRIMARY_COLOR
+    });
+
+    this.difficultySlider = this.createSlider(16, 160, "Difficulty Multiplier", 0.25, 3, (value) => {
+      balanceManager.updateConfig({ difficultyMultiplier: value });
+      this.showFeedback(`Difficulty multiplier set to ${value.toFixed(2)}`);
+    });
+
+    this.lootSlider = this.createSlider(16, 220, "Loot Rate", 0.25, 3, (value) => {
+      balanceManager.updateConfig({ lootRate: value });
+      this.showFeedback(`Loot rate set to ${value.toFixed(2)}`);
+    });
+
+    const exportButton = this.createButton(16, panelHeight - 48, "Export", () => {
+      this.handleExport();
+    });
+
+    const importButton = this.createButton(132, panelHeight - 48, "Import", () => {
+      this.handleImport();
+    });
+
+    const resetButton = this.createButton(248, panelHeight - 48, "Reset Stats", () => {
+      telemetry.reset();
+      this.showFeedback("Telemetry reset.");
+    });
+
+    this.feedbackText = scene.add.text(16, panelHeight - 82, "", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "14px",
+      color: TEXT_MUTED_COLOR
+    });
+
+    this.add([
+      background,
+      title,
+      subtitle,
+      this.statsText,
+      this.difficultySlider.container,
+      this.lootSlider.container,
+      exportButton,
+      importButton,
+      resetButton,
+      this.feedbackText
+    ]);
+
+    this.setSize(panelWidth, panelHeight);
+    this.setScrollFactor(0);
+
+    this.updateTelemetry(telemetry.getSnapshot());
+    this.applyBalanceConfig(balanceManager.getConfig());
+    this.registerEventListeners();
+  }
+
+  public override destroy(fromScene?: boolean): void {
+    this.unregisterEventListeners();
+    super.destroy(fromScene);
+  }
+
+  private registerEventListeners(): void {
+    this.telemetryListener = (snapshot: TelemetrySnapshot) => {
+      this.updateTelemetry(snapshot);
+    };
+    EventBus.on(GameEvent.TelemetryUpdated, this.telemetryListener, this);
+
+    this.balanceListener = (config: BalanceConfig) => {
+      this.applyBalanceConfig(config);
+    };
+    EventBus.on(GameEvent.BalanceConfigUpdated, this.balanceListener, this);
+
+    this.once(Phaser.GameObjects.Events.DESTROY, () => {
+      this.unregisterEventListeners();
+    });
+  }
+
+  private unregisterEventListeners(): void {
+    if (this.telemetryListener) {
+      EventBus.off(GameEvent.TelemetryUpdated, this.telemetryListener, this);
+      this.telemetryListener = undefined;
+    }
+
+    if (this.balanceListener) {
+      EventBus.off(GameEvent.BalanceConfigUpdated, this.balanceListener, this);
+      this.balanceListener = undefined;
+    }
+  }
+
+  private updateTelemetry(snapshot: TelemetrySnapshot): void {
+    const lines: string[] = [];
+    lines.push(`Expeditions: ${snapshot.totalExpeditions}`);
+    const winRatePercent = (snapshot.winRate * 100).toFixed(1);
+    lines.push(`Win Rate: ${winRatePercent}%`);
+    lines.push(`Avg Loot: ${snapshot.averageLoot.toFixed(2)}`);
+    lines.push(`Avg Injury: ${snapshot.averageInjury.toFixed(2)}`);
+
+    if (snapshot.lastUpdatedAt > 0) {
+      const date = new Date(snapshot.lastUpdatedAt);
+      lines.push(`Last Update: ${date.toLocaleTimeString()}`);
+    } else {
+      lines.push("Last Update: --");
+    }
+
+    this.statsText.setText(lines.join("\n"));
+  }
+
+  private applyBalanceConfig(config: BalanceConfig): void {
+    this.setSliderValue(this.difficultySlider, config.difficultyMultiplier, false);
+    this.setSliderValue(this.lootSlider, config.lootRate, false);
+  }
+
+  private createSlider(
+    x: number,
+    y: number,
+    label: string,
+    min: number,
+    max: number,
+    onChange: (value: number) => void
+  ): SliderControl {
+    const container = this.scene.add.container(x, y);
+    const labelText = this.scene.add.text(0, 0, label, {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "16px",
+      color: TEXT_PRIMARY_COLOR
+    });
+
+    const trackWidth = 220;
+    const track = this.scene.add.rectangle(0, 28, trackWidth, 6, SLIDER_TRACK_COLOR, 1);
+    track.setOrigin(0, 0.5);
+    track.setInteractive({ useHandCursor: true });
+
+    const thumb = this.scene.add.rectangle(0, 28, 14, 14, SLIDER_THUMB_COLOR, 1);
+    thumb.setOrigin(0.5);
+    thumb.setInteractive({ useHandCursor: true });
+
+    const valueText = this.scene.add.text(trackWidth + 16, 18, "1.00", {
+      fontFamily: "Consolas, 'Courier New', monospace",
+      fontSize: "16px",
+      color: TEXT_MUTED_COLOR
+    });
+
+    container.add([labelText, track, thumb, valueText]);
+
+    const control: SliderControl = {
+      container,
+      track,
+      thumb,
+      valueText,
+      min,
+      max,
+      value: min,
+      onChange
+    };
+
+    track.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, (pointer: unknown) => {
+      const worldX = this.extractWorldX(pointer);
+      const value = this.resolveSliderValue(control, worldX);
+      this.setSliderValue(control, value, true);
+    });
+
+    thumb.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
+      thumb.setFillStyle(0xffdf5a, 1);
+    });
+
+    thumb.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
+      thumb.setFillStyle(SLIDER_THUMB_COLOR, 1);
+    });
+
+    thumb.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, (pointer: unknown) => {
+      const worldX = this.extractWorldX(pointer);
+      const value = this.resolveSliderValue(control, worldX);
+      this.setSliderValue(control, value, true);
+    });
+
+    this.setSliderValue(control, min, false);
+    return control;
+  }
+
+  private resolveSliderValue(control: SliderControl, worldX: number): number {
+    const left = this.x + control.container.x + control.track.x;
+    const width = control.track.width;
+    const local = clamp(worldX - left, 0, width);
+    const ratio = width <= 0 ? 0 : local / width;
+    return control.min + ratio * (control.max - control.min);
+  }
+
+  private setSliderValue(control: SliderControl, value: number, emitChange: boolean): void {
+    const clamped = clamp(value, control.min, control.max);
+    control.value = clamped;
+    const ratio = control.max === control.min ? 0 : (clamped - control.min) / (control.max - control.min);
+    const thumbX = control.track.x + ratio * control.track.width;
+    control.thumb.setPosition(thumbX, control.track.y);
+    control.valueText.setText(clamped.toFixed(2));
+
+    if (emitChange) {
+      control.onChange(clamped);
+    }
+  }
+
+  private createButton(
+    x: number,
+    y: number,
+    label: string,
+    handler: () => void
+  ): Phaser.GameObjects.Container {
+    const container = this.scene.add.container(x, y);
+    const background = this.scene.add.rectangle(0, 0, BUTTON_WIDTH, BUTTON_HEIGHT, BUTTON_IDLE_COLOR, 1);
+    background.setOrigin(0, 0);
+    background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.3);
+    background.setInteractive({ useHandCursor: true });
+
+    const text = this.scene.add.text(BUTTON_WIDTH / 2, BUTTON_HEIGHT / 2, label, {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "15px",
+      color: BUTTON_TEXT_COLOR
+    });
+    text.setOrigin(0.5);
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
+      background.setFillStyle(BUTTON_HOVER_COLOR, 1);
+    });
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
+      background.setFillStyle(BUTTON_IDLE_COLOR, 1);
+    });
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => {
+      handler();
+    });
+
+    container.add([background, text]);
+    return container;
+  }
+
+  private showFeedback(message: string): void {
+    this.feedbackText.setText(message);
+    this.feedbackText.setColor(TEXT_MUTED_COLOR);
+  }
+
+  private handleExport(): void {
+    const payload = balanceManager.exportConfig();
+    if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+      void navigator.clipboard
+        .writeText(payload)
+        .then(() => {
+          this.showFeedback("Balance JSON copied to clipboard.");
+        })
+        .catch(() => {
+          console.log("[DebugPanel] Balance Config:", payload);
+          this.showFeedback("Clipboard unavailable. JSON logged to console.");
+        });
+      return;
+    }
+
+    if (typeof window !== "undefined" && typeof window.prompt === "function") {
+      window.prompt("Copy balance configuration JSON", payload);
+      this.showFeedback("Balance JSON shown in prompt dialog.");
+      return;
+    }
+
+    console.log("[DebugPanel] Balance Config:", payload);
+    this.showFeedback("Balance JSON logged to console.");
+  }
+
+  private handleImport(): void {
+    if (typeof window === "undefined" || typeof window.prompt !== "function") {
+      this.showFeedback("Import unavailable in this environment.");
+      return;
+    }
+
+    const response = window.prompt("Paste balance configuration JSON");
+    if (!response) {
+      this.showFeedback("Import cancelled.");
+      return;
+    }
+
+    const applied = balanceManager.importConfig(response);
+    if (applied) {
+      this.showFeedback("Balance configuration applied.");
+    } else {
+      this.feedbackText.setColor("#ff6b6b");
+      this.feedbackText.setText("Invalid balance JSON. No changes applied.");
+    }
+  }
+
+  private extractWorldX(pointer: unknown): number {
+    const candidate = pointer as PointerLike | null;
+    if (candidate && typeof candidate.worldX === "number") {
+      return candidate.worldX;
+    }
+    return 0;
+  }
+}
+

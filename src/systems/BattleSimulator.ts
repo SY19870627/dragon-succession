@@ -13,6 +13,7 @@ import type {
   IntelDiscovery
 } from "../types/expeditions";
 import RNG from "../utils/RNG";
+import balanceManager from "./BalanceManager";
 
 const MIN_ROUNDS = 2;
 const MAX_ROUNDS = 6;
@@ -113,6 +114,7 @@ class BattleSimulator {
     }
 
     const reports: InjuryReport[] = [];
+    const { difficultyMultiplier } = balanceManager.getConfig();
     const baseDamage = damageTaken / party.length;
 
     party.forEach((knight) => {
@@ -120,11 +122,12 @@ class BattleSimulator {
       const mitigation = Math.max(0.4, Math.min(0.9, resilience / 160));
       const variance = rng.next() * 0.6 + 0.7; // 0.7 - 1.3
       const inflicted = Math.max(0, Math.round(baseDamage * variance * (1 - mitigation)));
-      if (inflicted <= 0) {
+      const scaledInflicted = Math.max(0, Math.round(inflicted * difficultyMultiplier));
+      if (scaledInflicted <= 0) {
         return;
       }
 
-      const resultingInjury = Math.min(100, knight.injury + inflicted);
+      const resultingInjury = Math.min(100, knight.injury + scaledInflicted);
       reports.push({
         knightId: knight.id,
         injuryDelta: resultingInjury - knight.injury,
@@ -140,9 +143,14 @@ class BattleSimulator {
    */
   public rollLoot(encounter: EncounterDefinition, rng: RNG): LootResult {
     const drops: GeneratedLoot[] = [];
+    const { lootRate } = balanceManager.getConfig();
     const totalWeight = encounter.lootTable.reduce((sum, entry) => sum + entry.weight, 0);
     const bonusDrops = encounter.powerRating >= 90 ? 2 : encounter.powerRating >= 60 ? 1 : 0;
-    const dropCount = LOOT_BASE_DROPS + bonusDrops + (rng.next() < 0.35 ? 1 : 0);
+    const baseDropCount = LOOT_BASE_DROPS + bonusDrops + (rng.next() < 0.35 ? 1 : 0);
+    const expectedDrops = Math.max(0, baseDropCount * lootRate);
+    const guaranteedDrops = Math.floor(expectedDrops);
+    const fractional = expectedDrops - guaranteedDrops;
+    const dropCount = guaranteedDrops + (rng.next() < fractional ? 1 : 0);
 
     for (let i = 0; i < dropCount && totalWeight > 0; i += 1) {
       const roll = rng.next() * totalWeight;
