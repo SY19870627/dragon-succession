@@ -2,6 +2,9 @@
 import type {
   BattleOutcome,
   BattleReport,
+  BattleResolution,
+  BattleScript,
+  BattleScriptEvent,
   EncounterDefinition,
   GeneratedLoot,
   InjuryReport,
@@ -28,14 +31,34 @@ class BattleSimulator {
     encounter: EncounterDefinition,
     rng: RNG
   ): BattleReport {
+    return this.resolveBattle(party, encounter, rng).report;
+  }
+
+  /**
+   * Simulates combat and retains the generated battle script for presentation.
+   */
+  public simulateBattleWithScript(
+    party: ReadonlyArray<KnightRecord>,
+    encounter: EncounterDefinition,
+    rng: RNG
+  ): BattleResolution {
+    return this.resolveBattle(party, encounter, rng);
+  }
+
+  private resolveBattle(
+    party: ReadonlyArray<KnightRecord>,
+    encounter: EncounterDefinition,
+    rng: RNG
+  ): BattleResolution {
     if (party.length === 0) {
-      return {
+      const report: BattleReport = {
         outcome: "flee",
         rounds: 0,
         damageTaken: 0,
         damageDealt: 0,
         mvpId: null
-      } satisfies BattleReport;
+      };
+      return { report, script: this.buildBattleScript(party, encounter, report) };
     }
 
     const partyPower = this.calculatePartyPower(party);
@@ -66,13 +89,15 @@ class BattleSimulator {
     const damageDealt = this.estimateDamageDealt(outcome, difficulty, ratio, partyPower, rng);
     const mvpId = this.pickMvpId(party, rng);
 
-    return {
+    const report: BattleReport = {
       outcome,
       rounds,
       damageTaken,
       damageDealt,
       mvpId
-    } satisfies BattleReport;
+    };
+
+    return { report, script: this.buildBattleScript(party, encounter, report) };
   }
 
   /**
@@ -284,6 +309,234 @@ class BattleSimulator {
     }
 
     return weighted[weighted.length - 1]?.id ?? null;
+  }
+
+  private buildBattleScript(
+    party: ReadonlyArray<KnightRecord>,
+    encounter: EncounterDefinition,
+    report: BattleReport
+  ): BattleScript {
+    const events: BattleScriptEvent[] = [];
+    const totalRounds = report.rounds;
+    const scriptedRounds = Math.max(1, totalRounds);
+    const introDescription = this.describeIntro(party, encounter, report);
+
+    events.push({
+      id: `${encounter.id}-intro`,
+      type: "intro",
+      label: "Deployment",
+      description: introDescription,
+      round: 0,
+      cumulativeDamageDealt: 0,
+      cumulativeDamageTaken: 0,
+      duration: 1100
+    });
+
+    const dealtDistribution = this.createDeterministicDistribution(
+      report.damageDealt,
+      scriptedRounds,
+      report.outcome === "win" ? 0.45 : report.outcome === "loss" ? 0.25 : 0.3
+    );
+    const takenDistribution = this.createDeterministicDistribution(
+      report.damageTaken,
+      scriptedRounds,
+      report.outcome === "loss" ? 0.45 : 0.28
+    );
+
+    let cumulativeDealt = 0;
+    let cumulativeTaken = 0;
+    for (let index = 0; index < scriptedRounds; index += 1) {
+      const roundNumber = index + 1;
+      const dealtDelta = dealtDistribution[index] ?? 0;
+      const takenDelta = takenDistribution[index] ?? 0;
+      cumulativeDealt += dealtDelta;
+      cumulativeTaken += takenDelta;
+
+      const label = totalRounds > 0 ? `Round ${roundNumber}` : "Skirmish";
+      const description = this.describeRound(
+        roundNumber,
+        scriptedRounds,
+        dealtDelta,
+        takenDelta,
+        encounter,
+        report.outcome
+      );
+
+      events.push({
+        id: `${encounter.id}-round-${roundNumber}`,
+        type: "round",
+        label,
+        description,
+        round: roundNumber,
+        cumulativeDamageDealt: cumulativeDealt,
+        cumulativeDamageTaken: cumulativeTaken,
+        duration: 900
+      });
+
+      if (roundNumber >= totalRounds && totalRounds > 0 && index < scriptedRounds - 1) {
+        break;
+      }
+    }
+
+    const mvpName = this.resolveMvpName(party, report.mvpId);
+    const outcomeDescription = this.describeOutcome(report, encounter, mvpName);
+
+    events.push({
+      id: `${encounter.id}-outcome`,
+      type: "outcome",
+      label: this.outcomeLabel(report.outcome),
+      description: outcomeDescription,
+      round: Math.max(0, totalRounds),
+      cumulativeDamageDealt: report.damageDealt,
+      cumulativeDamageTaken: report.damageTaken,
+      duration: 1200
+    });
+
+    const totalDuration = events.reduce((sum, event) => sum + event.duration, 0);
+
+    return {
+      encounterId: encounter.id,
+      encounterName: encounter.name,
+      totalRounds,
+      outcome: report.outcome,
+      mvpId: report.mvpId,
+      events,
+      totalDuration
+    } satisfies BattleScript;
+  }
+
+  private createDeterministicDistribution(total: number, segments: number, focus: number): number[] {
+    if (segments <= 0) {
+      return [];
+    }
+    if (total <= 0) {
+      return new Array(segments).fill(0);
+    }
+
+    const weights: number[] = [];
+    for (let index = 0; index < segments; index += 1) {
+      const progress = (index + 1) / (segments + 1);
+      const curve = Math.sin(progress * Math.PI);
+      weights.push(1 + focus * curve);
+    }
+
+    const sum = weights.reduce((acc, weight) => acc + weight, 0);
+    const distribution = weights.map((weight) => Math.max(0, Math.round((weight / sum) * total)));
+    let allocated = distribution.reduce((acc, value) => acc + value, 0);
+    let diff = total - allocated;
+    let step = 0;
+
+    while (diff !== 0 && segments > 0 && step < segments * 6) {
+      const index = diff > 0 ? step % segments : segments - 1 - (step % segments);
+      const current = distribution[index];
+      if (current === undefined) {
+        step += 1;
+        continue;
+      }
+      if (diff < 0 && current <= 0) {
+        step += 1;
+        continue;
+      }
+      distribution[index] = current + (diff > 0 ? 1 : -1);
+      diff += diff > 0 ? -1 : 1;
+      step += 1;
+    }
+
+    return distribution;
+  }
+
+  private describeIntro(
+    party: ReadonlyArray<KnightRecord>,
+    encounter: EncounterDefinition,
+    report: BattleReport
+  ): string {
+    if (party.length === 0) {
+      return `${encounter.name} forces advance unopposed as scouts fall back.`;
+    }
+
+    const highlighted = party
+      .slice(0, 3)
+      .map((knight) => `${knight.name} "${knight.epithet}"`)
+      .join("、");
+    const mention = highlighted.length > 0 ? `${highlighted}` : "The strike team";
+    const enemyNote = `${encounter.enemyCount} foes`;
+    const tone = report.outcome === "win" ? "confidently" : report.outcome === "loss" ? "with guarded resolve" : "cautiously";
+    return `${mention} engage ${enemyNote} of ${encounter.name} ${tone}.`;
+  }
+
+  private describeRound(
+    round: number,
+    totalRounds: number,
+    dealtDelta: number,
+    takenDelta: number,
+    encounter: EncounterDefinition,
+    outcome: BattleOutcome
+  ): string {
+    if (dealtDelta <= 0 && takenDelta <= 0) {
+      return "Both sides circle for advantage while scouts relay movements.";
+    }
+
+    const pressure = dealtDelta - takenDelta;
+    if (pressure > Math.max(10, takenDelta * 0.6)) {
+      const surge = round === totalRounds ? "final" : "decisive";
+      return `Knights launch a ${surge} push, cracking ${encounter.name}'s formation.`;
+    }
+
+    if (takenDelta > dealtDelta * 1.25) {
+      return `${encounter.name} counters fiercely, forcing the line to tighten shields.`;
+    }
+
+    if (outcome === "flee" && round >= totalRounds) {
+      return "The order to fall back ripples through the ranks while covering volleys fly.";
+    }
+
+    return "Steel clashes evenly as both sides trade disciplined blows.";
+  }
+
+  private describeOutcome(
+    report: BattleReport,
+    encounter: EncounterDefinition,
+    mvpName: string | null
+  ): string {
+    switch (report.outcome) {
+      case "win": {
+        const closer = mvpName ? `${mvpName} leads the final charge` : "The strike team holds formation";
+        return `${closer} as ${encounter.name} breaks and scatters.`;
+      }
+      case "loss":
+        return `${encounter.name} overwhelms the line, forcing an emergency withdrawal.`;
+      case "flee":
+      default:
+        return "Signal horns blare and the party disengages before being encircled.";
+    }
+  }
+
+  private outcomeLabel(outcome: BattleOutcome): string {
+    switch (outcome) {
+      case "win":
+        return "Victory";
+      case "loss":
+        return "Defeat";
+      case "flee":
+      default:
+        return "Retreat";
+    }
+  }
+
+  private resolveMvpName(
+    party: ReadonlyArray<KnightRecord>,
+    mvpId: string | null
+  ): string | null {
+    if (!mvpId) {
+      return null;
+    }
+
+    const knight = party.find((member) => member.id === mvpId);
+    if (!knight) {
+      return null;
+    }
+
+    return `${knight.name} "${knight.epithet}"`;
   }
 
   private pickLootEntry(lootTable: ReadonlyArray<LootEntry>, roll: number): LootEntry | null {

@@ -4,6 +4,7 @@ import BootScene from "./scenes/BootScene";
 import CastleScene from "./scenes/CastleScene";
 import MainMenuScene from "./scenes/MainMenuScene";
 import MapScene from "./scenes/MapScene";
+import BattleScene from "./scenes/BattleScene";
 import PreloadScene from "./scenes/PreloadScene";
 import UIScene from "./scenes/UIScene";
 
@@ -25,7 +26,7 @@ const config: Phaser.Types.Core.GameConfig = {
     pixelArt: false,
     antialias: true
   },
-  scene: [BootScene, PreloadScene, MainMenuScene, CastleScene, MapScene, UIScene]
+  scene: [BootScene, PreloadScene, MainMenuScene, CastleScene, MapScene, BattleScene, UIScene]
 };
 
 const game = new Phaser.Game(config);
