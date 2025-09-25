@@ -14,8 +14,10 @@ import type {
 } from "../types/expeditions";
 import type { DragonIntelState, KnightRecord } from "../types/state";
 import RNG from "../utils/RNG";
+import balanceManager from "./BalanceManager";
 import battleSimulator from "./BattleSimulator";
 import knightManager from "./KnightManager";
+import telemetry from "./Telemetry";
 
 const THREAT_POWER: Record<string, number> = {
   Low: 45,
@@ -137,7 +139,7 @@ class ExpeditionSystem {
       battleReport.outcome === "win" ? battleSimulator.maybeGainIntel(encounter, rng) : null;
     const intel = this.resolveIntelDiscovery(intelDiscovery);
 
-    return {
+    const expeditionResult: ExpeditionResult = {
       party: updatedParty,
       encounter,
       battleReport,
@@ -146,6 +148,10 @@ class ExpeditionSystem {
       loot,
       intel
     } satisfies ExpeditionResult;
+
+    telemetry.recordExpedition(expeditionResult);
+
+    return expeditionResult;
   }
 
   private getParty(partyIds: ReadonlyArray<string>): KnightRecord[] {
@@ -156,9 +162,10 @@ class ExpeditionSystem {
   }
 
   private generateEncounter(node: MapNodeDefinition, rng: RNG, seed: number): EncounterDefinition {
-    const threatPower = THREAT_POWER[node.defaultThreat] ?? 60;
+    const { difficultyMultiplier } = balanceManager.getConfig();
+    const threatPower = (THREAT_POWER[node.defaultThreat] ?? 60) * difficultyMultiplier;
     const volatility = 0.75 + rng.next() * 0.5; // 0.75 - 1.25
-    const powerRating = Math.round(threatPower * volatility);
+    const powerRating = Math.max(1, Math.round(threatPower * volatility));
     const countRange = THREAT_ENEMY_COUNTS[node.defaultThreat] ?? { min: 4, max: 8 };
     const enemyCount = Math.round(countRange.min + rng.next() * Math.max(0, countRange.max - countRange.min));
 

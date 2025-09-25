@@ -9,6 +9,7 @@ import eventSystem from "../systems/EventSystem";
 import type { EconomyForecast, WeeklyProjection } from "../types/economy";
 import KnightListPanel from "./ui/KnightListPanel";
 import CraftingPanel from "./ui/CraftingPanel";
+import DebugPanel from "./ui/DebugPanel";
 import type { EventInstance, EventResolution } from "../types/events";
 
 const PANEL_BACKGROUND_COLOR = 0x101c3a;
@@ -77,6 +78,9 @@ export default class UIScene extends Phaser.Scene {
   private craftingPanel?: CraftingPanel;
   private craftingToggle?: PanelToggleButton;
   private craftingPanelVisible: boolean;
+  private debugPanel?: DebugPanel;
+  private debugToggle?: PanelToggleButton;
+  private debugPanelVisible: boolean;
   private eventOverlay?: Phaser.GameObjects.Rectangle;
   private eventModal?: Phaser.GameObjects.Container;
   private eventTitleText?: Phaser.GameObjects.Text;
@@ -95,6 +99,7 @@ export default class UIScene extends Phaser.Scene {
     this.craftingPanelVisible = false;
     this.eventChoiceButtons = [];
     this.activeEvent = null;
+    this.debugPanelVisible = false;
   }
 
   /**
@@ -107,11 +112,14 @@ export default class UIScene extends Phaser.Scene {
     this.buildKnightToggle();
     this.buildCraftingPanel();
     this.buildCraftingToggle();
+    this.buildDebugPanel();
+    this.buildDebugToggle();
     this.buildEventModal();
     this.registerEventListeners();
 
     this.updateKnightToggleAppearance();
     this.updateCraftingToggleAppearance();
+    this.updateDebugToggleAppearance();
     this.updateResourceDisplay(resourceManager.getSnapshot());
     this.updateEconomyForecast(economySystem.getWeeklyForecast());
     this.highlightTimeButtons(timeSystem.getTimeScale());
@@ -272,6 +280,17 @@ export default class UIScene extends Phaser.Scene {
     this.add.existing(this.craftingPanel);
   }
 
+  private buildDebugPanel(): void {
+    const panelWidth = 360;
+    const panelX = (this.scale.width - panelWidth) / 2;
+    const panelY = 96;
+    this.debugPanel = new DebugPanel(this, panelX, panelY);
+    this.debugPanel.setDepth(870);
+    this.debugPanel.setVisible(false);
+    this.debugPanel.setActive(false);
+    this.add.existing(this.debugPanel);
+  }
+
   /**
    * Creates the toggle button used to show or hide the knight panel.
    */
@@ -362,6 +381,48 @@ export default class UIScene extends Phaser.Scene {
     container.setScrollFactor(0);
 
     this.craftingToggle = { container, background, label };
+  }
+
+  private buildDebugToggle(): void {
+    const buttonWidth = KNIGHT_BUTTON_WIDTH;
+    const buttonHeight = KNIGHT_BUTTON_HEIGHT;
+    const x = 16 + buttonWidth / 2;
+    const y = KNIGHT_BUTTON_OFFSET_Y + 128;
+    const container = this.add.container(x, y);
+
+    const background = this.add.rectangle(0, 0, buttonWidth, buttonHeight, BUTTON_IDLE_COLOR, 1);
+    background.setOrigin(0.5);
+    background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
+    background.setInteractive({ useHandCursor: true });
+
+    const label = this.add.text(0, 0, "Debug", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "16px",
+      fontStyle: "bold",
+      color: TEXT_MUTED_COLOR
+    });
+    label.setOrigin(0.5);
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
+      if (!this.debugPanelVisible) {
+        background.setFillStyle(BUTTON_HOVER_COLOR, 1);
+      }
+    });
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
+      this.updateDebugToggleAppearance();
+    });
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => {
+      this.toggleDebugPanel();
+    });
+
+    container.add(background);
+    container.add(label);
+    container.setDepth(865);
+    container.setScrollFactor(0);
+
+    this.debugToggle = { container, background, label };
   }
 
   /**
@@ -542,6 +603,16 @@ export default class UIScene extends Phaser.Scene {
       this.craftingPanel = undefined;
     }
 
+    if (this.debugToggle) {
+      this.debugToggle.container.destroy(true);
+      this.debugToggle = undefined;
+    }
+
+    if (this.debugPanel) {
+      this.debugPanel.destroy();
+      this.debugPanel = undefined;
+    }
+
     this.clearEventChoices();
 
     if (this.eventModal) {
@@ -563,6 +634,7 @@ export default class UIScene extends Phaser.Scene {
     this.timeButtons.length = 0;
     this.knightPanelVisible = false;
     this.craftingPanelVisible = false;
+    this.debugPanelVisible = false;
   }
 
   /**
@@ -937,6 +1009,47 @@ export default class UIScene extends Phaser.Scene {
       this.craftingToggle.background.setFillStyle(BUTTON_IDLE_COLOR, 1);
       this.craftingToggle.background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
       this.craftingToggle.label.setColor(TEXT_MUTED_COLOR);
+    }
+  }
+
+  private toggleDebugPanel(): void {
+    this.setDebugPanelVisibility(!this.debugPanelVisible);
+  }
+
+  private setDebugPanelVisibility(visible: boolean): void {
+    if (!this.debugPanel) {
+      return;
+    }
+
+    this.debugPanelVisible = visible;
+    this.debugPanel.setVisible(visible);
+    this.debugPanel.setActive(visible);
+
+    if (visible) {
+      this.debugPanel.setDepth(870);
+      this.children.bringToTop(this.debugPanel);
+    }
+
+    if (this.debugToggle) {
+      this.children.bringToTop(this.debugToggle.container);
+    }
+
+    this.updateDebugToggleAppearance();
+  }
+
+  private updateDebugToggleAppearance(): void {
+    if (!this.debugToggle) {
+      return;
+    }
+
+    if (this.debugPanelVisible) {
+      this.debugToggle.background.setFillStyle(BUTTON_ACTIVE_COLOR, 1);
+      this.debugToggle.background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.6);
+      this.debugToggle.label.setColor(BUTTON_ACTIVE_TEXT_COLOR);
+    } else {
+      this.debugToggle.background.setFillStyle(BUTTON_IDLE_COLOR, 1);
+      this.debugToggle.background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
+      this.debugToggle.label.setColor(TEXT_MUTED_COLOR);
     }
   }
 }
