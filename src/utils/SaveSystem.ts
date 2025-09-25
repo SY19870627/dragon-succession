@@ -1,6 +1,4 @@
 import { KNIGHT_PROFESSIONS, KNIGHT_TRAITS } from "../data/KnightDefinitions";
-import { cloneBuildingState } from "../data/BuildingState";
-import type { BuildingState } from "../types/buildings";
 import type { GameState, KnightRecord, KnightsState, QueueItemState } from "../types/state";
 
 const STORAGE_PREFIX = "dragon-succession:slot:";
@@ -11,7 +9,6 @@ const KNIGHT_PROFESSION_IDS = KNIGHT_PROFESSIONS.map((entry) => entry.id);
 const KNIGHT_TRAIT_IDS = KNIGHT_TRAITS.map((entry) => entry.id);
 
 type ResourceKey = (typeof RESOURCE_KEYS)[number];
-const BUILDING_IDS = ["TrainingGround", "Forge", "Infirmary", "Watchtower"] as const;
 
 type KnightAttributes = KnightRecord["attributes"];
 
@@ -145,25 +142,6 @@ const isKnightsStateRecord = (value: unknown): value is KnightsState => {
   );
 };
 
-const isBuildingStateRecord = (value: unknown): value is BuildingState => {
-  if (!isPlainObject(value)) {
-    return false;
-  }
-
-  const candidate = value as Record<string, unknown>;
-  const levels = candidate.levels;
-  const storedTrainingPoints = candidate.storedTrainingPoints;
-
-  if (!isPlainObject(levels) || typeof storedTrainingPoints !== "number" || !Number.isFinite(storedTrainingPoints)) {
-    return false;
-  }
-
-  return BUILDING_IDS.every((id) => {
-    const level = (levels as Record<string, unknown>)[id];
-    return typeof level === "number" && Number.isFinite(level);
-  });
-};
-
 const isGameStateRecord = (value: unknown): value is GameState => {
   if (!isPlainObject(value)) {
     return false;
@@ -176,7 +154,6 @@ const isGameStateRecord = (value: unknown): value is GameState => {
   const resources = candidate.resources;
   const queue = candidate.queue;
   const knights = candidate.knights;
-  const buildings = candidate.buildings;
 
   if (
     typeof version !== "number" ||
@@ -187,8 +164,7 @@ const isGameStateRecord = (value: unknown): value is GameState => {
     !Number.isFinite(timeScale) ||
     !isResourceSnapshot(resources) ||
     !Array.isArray(queue) ||
-    !isKnightsStateRecord(knights) ||
-    !isBuildingStateRecord(buildings)
+    !isKnightsStateRecord(knights)
   ) {
     return false;
   }
@@ -270,8 +246,7 @@ export default class SaveSystem {
       updatedAt: timestamp,
       resources: { ...state.resources },
       queue: state.queue.map((item) => ({ ...item })),
-      knights: SaveSystem.cloneKnightsState(state.knights),
-      buildings: cloneBuildingState(state.buildings)
+      knights: SaveSystem.cloneKnightsState(state.knights)
     };
   }
 
@@ -308,8 +283,7 @@ export default class SaveSystem {
         ...parsed,
         resources: { ...parsed.resources },
         queue: parsed.queue.map((item) => ({ ...item })),
-        knights: SaveSystem.cloneKnightsState(parsed.knights),
-        buildings: cloneBuildingState(parsed.buildings)
+        knights: SaveSystem.cloneKnightsState(parsed.knights)
       };
     } catch {
       adapter.removeItem(SaveSystem.toSlotKey(slotId));

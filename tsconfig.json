@@ -15,11 +15,10 @@
     "allowSyntheticDefaultImports": true,
     "moduleDetection": "force",
     "noEmit": true,
+    "types": ["vite/client"],
     "baseUrl": "./src",
     "paths": {
-      "@/*": ["./*"],
-      "vite/client": ["types/vite-client"],
-      "phaser": ["types/phaser"]
+      "@/*": ["./*"]
     }
   },
   "include": ["src"]

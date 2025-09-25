@@ -84,18 +84,6 @@ class KnightManager {
   }
 
   /**
-   * Produces a deep clone of the persisted knight state for saving to disk.
-   */
-  public getState(): KnightsState {
-    return {
-      roster: this.state.roster.map((knight) => this.cloneKnight(knight)),
-      candidates: this.state.candidates.map((knight) => this.cloneKnight(knight)),
-      nextId: this.state.nextId,
-      candidateSeed: this.state.candidateSeed
-    };
-  }
-
-  /**
    * Retrieves the active roster list.
    */
   public getRoster(): KnightRecord[] {

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && node ./scripts/offline-vite-stub.mjs",
+    "build": "tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
