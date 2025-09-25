@@ -63,6 +63,8 @@ export default class CastleScene extends Phaser.Scene {
   private dispatchInfoText: Phaser.GameObjects.Text | null;
   private dispatchResultText: Phaser.GameObjects.Text | null;
   private dispatchButtonRect: Phaser.GameObjects.Rectangle | null;
+  private watchBattles: boolean;
+  private watchToggleText: Phaser.GameObjects.Text | null;
   private selectedKnightIds: Set<string>;
   private selectedQuestId: string | null;
   private rosterTextMap: Map<string, Phaser.GameObjects.Text>;
@@ -87,6 +89,8 @@ export default class CastleScene extends Phaser.Scene {
     this.dispatchInfoText = null;
     this.dispatchResultText = null;
     this.dispatchButtonRect = null;
+    this.watchBattles = false;
+    this.watchToggleText = null;
     this.selectedKnightIds = new Set();
     this.selectedQuestId = null;
     this.rosterTextMap = new Map();
@@ -377,15 +381,35 @@ export default class CastleScene extends Phaser.Scene {
     });
     container.add(resultText);
 
+    const watchToggle = this.add.text(-panelWidth / 2 + 24, panelHeight / 2 - 188, "", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "15px",
+      color: "#cbd5f5",
+      fontStyle: "italic"
+    });
+    watchToggle.setInteractive({ useHandCursor: true });
+    watchToggle.on("pointerup", () => {
+      this.toggleWatchMode();
+    });
+    watchToggle.on("pointerover", () => {
+      watchToggle.setColor("#fde68a");
+    });
+    watchToggle.on("pointerout", () => {
+      this.updateWatchToggleLabel();
+    });
+    container.add(watchToggle);
+
     this.dispatchContainer = container;
     this.rosterListContainer = rosterList;
     this.questListContainer = questList;
     this.dispatchInfoText = infoText;
     this.dispatchResultText = resultText;
     this.dispatchButtonRect = buttonRect;
+    this.watchToggleText = watchToggle;
 
     this.refreshDispatchPanel();
     this.updateDispatchStatus();
+    this.updateWatchToggleLabel();
   }
 
   private drawBuildingPanel(): void {
@@ -884,6 +908,29 @@ export default class CastleScene extends Phaser.Scene {
     this.dispatchInfoText.setText(defaultMessage);
   }
 
+  private toggleWatchMode(): void {
+    this.watchBattles = !this.watchBattles;
+    this.updateWatchToggleLabel();
+    const message = this.watchBattles ? "觀戰模式已啟用。" : "觀戰模式已關閉。";
+    this.updateDispatchStatus(message);
+    this.time.delayedCall(1600, () => {
+      if (!this.watchToggleText || !this.watchToggleText.active) {
+        return;
+      }
+      this.updateDispatchStatus();
+    });
+  }
+
+  private updateWatchToggleLabel(): void {
+    if (!this.watchToggleText) {
+      return;
+    }
+
+    const baseLabel = this.watchBattles ? "觀戰模式：開" : "觀戰模式：關";
+    this.watchToggleText.setText(`${baseLabel}（點擊切換）`);
+    this.watchToggleText.setColor(this.watchBattles ? "#facc15" : "#cbd5f5");
+  }
+
   private executeExpedition(): void {
     if (!this.isDispatchReady() || !this.selectedQuestId) {
       return;
@@ -915,6 +962,10 @@ export default class CastleScene extends Phaser.Scene {
     this.lastExpeditionSummary = summary;
     if (this.dispatchResultText) {
       this.dispatchResultText.setText(summary);
+    }
+
+    if (this.watchBattles) {
+      this.showBattleTimeline(result, quest);
     }
 
     questManager.startQuest(quest.id);
@@ -973,6 +1024,31 @@ export default class CastleScene extends Phaser.Scene {
     }
 
     return lines.join("\n");
+  }
+
+  /**
+   * Launches the battle observer scene with the generated script for playback.
+   */
+  private showBattleTimeline(result: ExpeditionResult, quest: QuestRecord): void {
+    if (this.scene.isActive(SceneKeys.Battle)) {
+      this.scene.stop(SceneKeys.Battle);
+    }
+
+    const node = this.findNodeDefinition(quest.nodeId);
+    const questLabel = node?.label ?? quest.summary;
+
+    this.scene.launch(SceneKeys.Battle, {
+      script: result.battleScript,
+      encounter: result.encounter,
+      report: result.battleReport,
+      party: result.party,
+      questLabel,
+      onComplete: () => {
+        this.scene.bringToTop(SceneKeys.Castle);
+      }
+    });
+
+    this.scene.bringToTop(SceneKeys.Battle);
   }
 
   private findNodeDefinition(nodeId: string): MapNodeDefinition | undefined {

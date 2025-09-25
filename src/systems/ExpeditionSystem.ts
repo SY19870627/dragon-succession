@@ -123,7 +123,8 @@ class ExpeditionSystem {
     const party = this.getParty(partyIds);
     const rng = new RNG(seed);
     const encounter = this.generateEncounter(node, rng, seed);
-    const battleReport = battleSimulator.simulateBattle(party, encounter, rng);
+    const battleResolution = battleSimulator.simulateBattleWithScript(party, encounter, rng);
+    const battleReport = battleResolution.report;
     const injuries = battleSimulator.applyInjuries(party, battleReport.damageTaken, rng);
 
     const fatigueAdjustments = this.calculateFatigueAdjustments(party, encounter, battleReport, rng);
@@ -140,6 +141,7 @@ class ExpeditionSystem {
       party: updatedParty,
       encounter,
       battleReport,
+      battleScript: battleResolution.script,
       injuries,
       loot,
       intel
