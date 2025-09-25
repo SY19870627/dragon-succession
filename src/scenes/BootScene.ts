@@ -2,6 +2,7 @@ import Phaser from "phaser";
 
 import { SceneKeys } from "../data/SceneKeys";
 import { TextureKey, TextureKeys } from "../data/TextureKeys";
+import dataRegistry from "../systems/DataRegistry";
 
 type TextureBlueprint = {
   readonly key: TextureKey;
@@ -65,6 +66,9 @@ export default class BootScene extends Phaser.Scene {
     TEXTURE_BLUEPRINTS.forEach((blueprint) => {
       this.ensureTexture(blueprint);
     });
+
+    // Prime data registries before dependent scenes launch.
+    dataRegistry.initialize();
 
     this.scene.start(SceneKeys.Preload);
   }

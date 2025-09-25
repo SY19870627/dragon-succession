@@ -862,17 +862,19 @@ export default class UIScene extends Phaser.Scene {
   private calculateEventChoiceLayout(choiceCount: number): { startY: number; spacing: number } {
     const width = this.eventModalSize?.width ?? EVENT_MODAL_WIDTH;
 
-    const promptLocalBottom = this.eventPromptText
-      ? this.eventPromptText.y + this.eventPromptText.displayHeight
-      : 150 - EVENT_CHOICE_AREA_MARGIN;
+    const promptText = this.eventPromptText;
+    const promptLocalBottom =
+      promptText !== undefined
+        ? promptText.y + promptText.getBounds().height
+        : 150 - EVENT_CHOICE_AREA_MARGIN;
     const areaTop = promptLocalBottom + EVENT_CHOICE_AREA_MARGIN;
 
     const gapCount = Math.max(0, choiceCount - 1);
     const spacing = gapCount > 0 ? EVENT_CHOICE_VERTICAL_SPACING : 0;
     const layoutHeight = choiceCount * EVENT_CHOICE_BUTTON_HEIGHT + gapCount * spacing;
 
-    const resultVisible = this.eventResultText?.visible ?? false;
-    const resultHeight = resultVisible ? this.eventResultText.displayHeight : 0;
+    const resultText = this.eventResultText;
+    const resultHeight = resultText && resultText.visible ? resultText.getBounds().height : 0;
     let resultTop = Math.max(EVENT_RESULT_MIN_Y, areaTop + layoutHeight + EVENT_CHOICE_AREA_MARGIN);
 
     const defaultCloseTop =
@@ -883,15 +885,15 @@ export default class UIScene extends Phaser.Scene {
     const minCloseTopFromResult = resultTop + resultHeight + EVENT_RESULT_PADDING_FROM_CLOSE;
     const closeTop = Math.max(defaultCloseTop, minCloseTopFromChoices, minCloseTopFromResult);
 
-    if (this.eventResultText) {
+    if (resultText) {
       const maxResultTop = closeTop - EVENT_RESULT_PADDING_FROM_CLOSE - resultHeight;
       resultTop = Math.min(resultTop, maxResultTop);
       resultTop = Math.max(EVENT_RESULT_MIN_Y, resultTop);
-      this.eventResultText.setY(resultTop);
+      resultText.setPosition(resultText.x, resultTop);
     }
 
     if (this.eventCloseButton) {
-      this.eventCloseButton.setY(closeTop);
+      this.eventCloseButton.setPosition(this.eventCloseButton.x, closeTop);
     }
 
     const requiredHeight = closeTop + EVENT_CLOSE_BUTTON_HEIGHT + EVENT_CLOSE_BUTTON_BOTTOM_MARGIN;
@@ -923,7 +925,7 @@ export default class UIScene extends Phaser.Scene {
   private positionEventChoiceButtons(layout: { startY: number; spacing: number }): void {
     let currentY = layout.startY;
     this.eventChoiceButtons.forEach((container, index) => {
-      container.setY(currentY);
+      container.setPosition(container.x, currentY);
 
       currentY += EVENT_CHOICE_BUTTON_HEIGHT;
       if (index < this.eventChoiceButtons.length - 1) {

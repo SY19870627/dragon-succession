@@ -72,6 +72,11 @@ declare module "phaser" {
         depth: number;
         x: number;
         y: number;
+        width: number;
+        height: number;
+        displayWidth: number;
+        displayHeight: number;
+        getBounds(output?: Phaser.Geom.Rectangle): Phaser.Geom.Rectangle;
         setInteractive(hitArea?: unknown, hitAreaCallback?: unknown, dropZone?: boolean): this;
         setInteractive(options?: unknown): this;
         removeInteractive(): this;
@@ -133,6 +138,7 @@ declare module "phaser" {
         setOrigin(x: number, y?: number): this;
         setStrokeStyle(lineWidth: number, color?: number, alpha?: number): this;
         setFillStyle(color: number, alpha?: number): this;
+        setSize(width: number, height: number): this;
         setDisplaySize(width: number, height: number): this;
       }
 
@@ -304,6 +310,10 @@ declare module "phaser" {
 
       class Rectangle {
         constructor(x: number, y: number, width: number, height: number);
+        x: number;
+        y: number;
+        width: number;
+        height: number;
         setTo(x: number, y: number, width: number, height: number): this;
         static Contains(rect: Rectangle, x: number, y: number): boolean;
       }
