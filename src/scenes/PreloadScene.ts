@@ -19,7 +19,7 @@ export default class PreloadScene extends Phaser.Scene {
   /**
    * Displays a lightweight progress indicator while queued assets load.
    */
-  public preload(): void {
+  public override preload(): void {
     const { width, height } = this.scale;
 
     const progressText = this.add.text(width / 2, height / 2 - 48, "Loading...", {
@@ -64,7 +64,7 @@ export default class PreloadScene extends Phaser.Scene {
   /**
    * Launches the UI overlay and advances into the main menu scene.
    */
-  public create(): void {
+  public override create(): void {
     this.scene.launch(SceneKeys.UI);
     this.scene.start(SceneKeys.MainMenu);
   }

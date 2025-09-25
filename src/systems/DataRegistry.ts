@@ -196,15 +196,57 @@ class DataRegistry {
     const tags = record.tags;
     const effects = record.effects;
 
-    return (
-      this.isNonEmptyString(id) &&
-      this.isNonEmptyString(name) &&
-      this.isNonEmptyString(description) &&
-      this.isItemRarity(rarity) &&
-      this.isNumber(valueAmount) &&
-      this.isStringArray(tags) &&
-      this.isResourceDeltaArray(effects)
-    );
+    const quality = record.quality;
+    const affixes = record.affixes;
+    const instanceId = record.instanceId;
+    const baseItemId = record.baseItemId;
+    const quantity = record.quantity;
+    const itemType = record.itemType;
+    const equippedBy = record.equippedBy;
+
+    if (
+      !(
+        this.isNonEmptyString(id) &&
+        this.isNonEmptyString(name) &&
+        this.isNonEmptyString(description) &&
+        this.isItemRarity(rarity) &&
+        this.isNumber(valueAmount) &&
+        this.isStringArray(tags) &&
+        this.isResourceDeltaArray(effects)
+      )
+    ) {
+      return false;
+    }
+
+    if (quality !== undefined && !this.isItemQuality(quality)) {
+      return false;
+    }
+
+    if (affixes !== undefined && !this.isItemAffixArray(affixes)) {
+      return false;
+    }
+
+    if (instanceId !== undefined && !this.isNonEmptyString(instanceId)) {
+      return false;
+    }
+
+    if (baseItemId !== undefined && !this.isNonEmptyString(baseItemId)) {
+      return false;
+    }
+
+    if (quantity !== undefined && !this.isNumber(quantity)) {
+      return false;
+    }
+
+    if (itemType !== undefined && itemType !== "equipment" && itemType !== "material") {
+      return false;
+    }
+
+    if (equippedBy !== undefined && !this.isNonEmptyString(equippedBy)) {
+      return false;
+    }
+
+    return true;
   }
 
   private isRecipe(value: unknown): value is Recipe {
@@ -494,6 +536,39 @@ class DataRegistry {
 
   private isItemRarity(value: unknown): value is Item["rarity"] {
     return value === "common" || value === "uncommon" || value === "rare" || value === "legendary";
+  }
+
+  private isItemQuality(value: unknown): value is NonNullable<Item["quality"]> {
+    return value === "crude" || value === "standard" || value === "fine" || value === "masterwork";
+  }
+
+  private isItemAffixArray(value: unknown): value is NonNullable<Item["affixes"]> {
+    if (!Array.isArray(value)) {
+      return false;
+    }
+
+    return value.every((entry) => this.isItemAffix(entry));
+  }
+
+  private isItemAffix(value: unknown): value is NonNullable<Item["affixes"]>[number] {
+    if (!this.isRecord(value)) {
+      return false;
+    }
+
+    const record = value as UnknownRecord;
+    const id = record.id;
+    const label = record.label;
+    const stat = record.stat;
+    const affixValue = record.value;
+
+    const statValid = stat === "strength" || stat === "intellect" || stat === "vitality";
+
+    return (
+      this.isNonEmptyString(id) &&
+      this.isNonEmptyString(label) &&
+      statValid &&
+      this.isNumber(affixValue)
+    );
   }
 
   private isEventCategory(value: unknown): value is EventCard["category"] {

@@ -1,9 +1,23 @@
-﻿import type { MapNodeDefinition } from "../data/MapNodes";
-import type { BattleReport, EncounterDefinition, ExpeditionResult, LootEntry } from "../types/expeditions";
-import type { KnightRecord } from "../types/state";
+import type { MapNodeDefinition } from "../data/MapNodes";
+import {
+  DRAGON_INTEL_MAX,
+  DRAGON_INTEL_SOURCES,
+  createDefaultDragonIntelState
+} from "../data/DragonIntel";
+import type {
+  BattleReport,
+  EncounterDefinition,
+  ExpeditionResult,
+  IntelDiscovery,
+  IntelReport,
+  LootEntry
+} from "../types/expeditions";
+import type { DragonIntelState, KnightRecord } from "../types/state";
 import RNG from "../utils/RNG";
+import balanceManager from "./BalanceManager";
 import battleSimulator from "./BattleSimulator";
 import knightManager from "./KnightManager";
+import telemetry from "./Telemetry";
 
 const THREAT_POWER: Record<string, number> = {
   Low: 45,
@@ -61,6 +75,45 @@ const DEFAULT_LOOT_TABLE: ReadonlyArray<LootEntry> = [
  * Orchestrates offline expedition resolution including battle, loot, and intel.
  */
 class ExpeditionSystem {
+  private dragonIntel: DragonIntelState;
+
+  public constructor() {
+    this.dragonIntel = createDefaultDragonIntelState();
+  }
+
+  /**
+   * Restores dragon intel progress from persisted state.
+   */
+  public initializeDragonIntel(state?: DragonIntelState): void {
+    if (state) {
+      const defaultState = createDefaultDragonIntelState();
+      const current = Math.max(0, state.current);
+      const threshold = state.threshold > 0 ? state.threshold : defaultState.threshold;
+      const lairUnlocked = state.lairUnlocked || current >= threshold;
+      this.dragonIntel = { current, threshold, lairUnlocked };
+    } else {
+      this.dragonIntel = createDefaultDragonIntelState();
+    }
+
+    if (this.dragonIntel.current >= this.dragonIntel.threshold) {
+      this.dragonIntel = { ...this.dragonIntel, lairUnlocked: true };
+    }
+  }
+
+  /**
+   * Returns the current dragon intel progress snapshot.
+   */
+  public getDragonIntelState(): DragonIntelState {
+    return { ...this.dragonIntel };
+  }
+
+  /**
+   * Resets stored dragon intel, typically after a run concludes.
+   */
+  public resetDragonIntel(): void {
+    this.dragonIntel = createDefaultDragonIntelState();
+  }
+
   /**
    * Resolves an expedition to the provided node with deterministic outcomes.
    */
@@ -72,7 +125,8 @@ class ExpeditionSystem {
     const party = this.getParty(partyIds);
     const rng = new RNG(seed);
     const encounter = this.generateEncounter(node, rng, seed);
-    const battleReport = battleSimulator.simulateBattle(party, encounter, rng);
+    const battleResolution = battleSimulator.simulateBattleWithScript(party, encounter, rng);
+    const battleReport = battleResolution.report;
     const injuries = battleSimulator.applyInjuries(party, battleReport.damageTaken, rng);
 
     const fatigueAdjustments = this.calculateFatigueAdjustments(party, encounter, battleReport, rng);
@@ -81,16 +135,23 @@ class ExpeditionSystem {
 
     const updatedParty = this.getParty(partyIds);
     const loot = battleReport.outcome === "win" ? battleSimulator.rollLoot(encounter, rng) : { items: [] };
-    const intel = battleReport.outcome === "win" ? battleSimulator.maybeGainIntel(encounter, rng) : null;
+    const intelDiscovery =
+      battleReport.outcome === "win" ? battleSimulator.maybeGainIntel(encounter, rng) : null;
+    const intel = this.resolveIntelDiscovery(intelDiscovery);
 
-    return {
+    const expeditionResult: ExpeditionResult = {
       party: updatedParty,
       encounter,
       battleReport,
+      battleScript: battleResolution.script,
       injuries,
       loot,
       intel
     } satisfies ExpeditionResult;
+
+    telemetry.recordExpedition(expeditionResult);
+
+    return expeditionResult;
   }
 
   private getParty(partyIds: ReadonlyArray<string>): KnightRecord[] {
@@ -101,12 +162,17 @@ class ExpeditionSystem {
   }
 
   private generateEncounter(node: MapNodeDefinition, rng: RNG, seed: number): EncounterDefinition {
-    const threatPower = THREAT_POWER[node.defaultThreat] ?? 60;
+    const { difficultyMultiplier } = balanceManager.getConfig();
+    const threatPower = (THREAT_POWER[node.defaultThreat] ?? 60) * difficultyMultiplier;
     const volatility = 0.75 + rng.next() * 0.5; // 0.75 - 1.25
-    const powerRating = Math.round(threatPower * volatility);
+    const powerRating = Math.max(1, Math.round(threatPower * volatility));
     const countRange = THREAT_ENEMY_COUNTS[node.defaultThreat] ?? { min: 4, max: 8 };
     const enemyCount = Math.round(countRange.min + rng.next() * Math.max(0, countRange.max - countRange.min));
-    const intelChance = Math.min(0.85, 0.35 + enemyCount * 0.03);
+
+    const tags = node.tags ?? [];
+    const isElite = tags.includes("elite");
+    const isRuins = node.biome === "Ruins" || tags.includes("ruins");
+    const intelChance = Math.min(0.95, 0.35 + enemyCount * 0.03 + (isElite ? 0.1 : 0) + (isRuins ? 0.05 : 0));
     const lootTable = BIOME_LOOT_TABLE[node.biome] ?? DEFAULT_LOOT_TABLE;
 
     const encounterId = `${node.id}-${seed.toString(36)}-${powerRating}`;
@@ -119,6 +185,14 @@ class ExpeditionSystem {
     ];
     const name = nameOptions[Math.floor(rng.next() * nameOptions.length)] ?? `${node.label} Threat`;
 
+    const intelRangeTemplate = isElite && isRuins
+      ? DRAGON_INTEL_SOURCES.eliteRuins
+      : isElite
+        ? DRAGON_INTEL_SOURCES.elite
+        : isRuins
+          ? DRAGON_INTEL_SOURCES.ruins
+          : undefined;
+
     return {
       id: encounterId,
       name,
@@ -127,6 +201,9 @@ class ExpeditionSystem {
       threatLevel: node.defaultThreat,
       biome: node.biome,
       intelChance,
+      dragonIntelRange: intelRangeTemplate
+        ? { min: intelRangeTemplate.min, max: intelRangeTemplate.max }
+        : undefined,
       lootTable
     } satisfies EncounterDefinition;
   }
@@ -194,14 +271,33 @@ class ExpeditionSystem {
 
     return Array.from(merged.values());
   }
+
+  private resolveIntelDiscovery(discovery: IntelDiscovery | null): IntelReport | null {
+    if (!discovery) {
+      return null;
+    }
+
+    const gained = Math.max(0, discovery.dragonIntelGained);
+    if (gained > 0) {
+      const clamped = Math.min(DRAGON_INTEL_MAX, this.dragonIntel.current + gained);
+      this.dragonIntel = { ...this.dragonIntel, current: clamped };
+    }
+
+    const thresholdReached = this.dragonIntel.current >= this.dragonIntel.threshold;
+    if (thresholdReached && !this.dragonIntel.lairUnlocked) {
+      this.dragonIntel = { ...this.dragonIntel, lairUnlocked: true };
+    }
+
+    return {
+      description: discovery.description,
+      dragonIntelGained: gained,
+      totalDragonIntel: this.dragonIntel.current,
+      threshold: this.dragonIntel.threshold,
+      thresholdReached
+    } satisfies IntelReport;
+  }
 }
 
 const expeditionSystem = new ExpeditionSystem();
 
 export default expeditionSystem;
-
-
-
-
-
-

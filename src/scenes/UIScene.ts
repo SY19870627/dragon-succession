@@ -4,12 +4,19 @@ import { SceneKeys } from "../data/SceneKeys";
 import EventBus, { GameEvent } from "../systems/EventBus";
 import resourceManager, { ResourceSnapshot, ResourceType } from "../systems/ResourceManager";
 import timeSystem from "../systems/TimeSystem";
+import economySystem from "../systems/EconomySystem";
+import eventSystem from "../systems/EventSystem";
+import type { EconomyForecast, WeeklyProjection } from "../types/economy";
 import KnightListPanel from "./ui/KnightListPanel";
+import CraftingPanel from "./ui/CraftingPanel";
+import DebugPanel from "./ui/DebugPanel";
+import type { EventInstance, EventResolution } from "../types/events";
 
 const PANEL_BACKGROUND_COLOR = 0x101c3a;
 const PANEL_STROKE_COLOR = 0xffffff;
 const TEXT_PRIMARY_COLOR = "#f0f5ff";
 const TEXT_MUTED_COLOR = "#b8c4e3";
+const TEXT_WARNING_COLOR = "#ff6b6b";
 const BUTTON_IDLE_COLOR = 0x1f2f4a;
 const BUTTON_HOVER_COLOR = 0x29415f;
 const BUTTON_ACTIVE_COLOR = 0xf1c40f;
@@ -42,7 +49,7 @@ interface TimeButtonEntry {
   readonly label: Phaser.GameObjects.Text;
 }
 
-interface KnightToggleButton {
+interface PanelToggleButton {
   readonly container: Phaser.GameObjects.Container;
   readonly background: Phaser.GameObjects.Rectangle;
   readonly label: Phaser.GameObjects.Text;
@@ -59,32 +66,68 @@ export default class UIScene extends Phaser.Scene {
   public static readonly KEY = SceneKeys.UI;
 
   private resourceText!: Phaser.GameObjects.Text;
+  private economyCurrentText!: Phaser.GameObjects.Text;
+  private economyNextText!: Phaser.GameObjects.Text;
   private readonly timeButtons: TimeButtonEntry[];
   private resourceListener?: (snapshot: ResourceSnapshot) => void;
   private timeScaleListener?: (scale: number) => void;
+  private economyListener?: (forecast: EconomyForecast) => void;
   private knightPanel?: KnightListPanel;
-  private knightToggle?: KnightToggleButton;
+  private knightToggle?: PanelToggleButton;
   private knightPanelVisible: boolean;
+  private craftingPanel?: CraftingPanel;
+  private craftingToggle?: PanelToggleButton;
+  private craftingPanelVisible: boolean;
+  private debugPanel?: DebugPanel;
+  private debugToggle?: PanelToggleButton;
+  private debugPanelVisible: boolean;
+  private eventOverlay?: Phaser.GameObjects.Rectangle;
+  private eventModal?: Phaser.GameObjects.Container;
+  private eventTitleText?: Phaser.GameObjects.Text;
+  private eventPromptText?: Phaser.GameObjects.Text;
+  private eventResultText?: Phaser.GameObjects.Text;
+  private eventCloseButton?: Phaser.GameObjects.Container;
+  private readonly eventChoiceButtons: Phaser.GameObjects.Container[];
+  private eventPresentedListener?: (instance: EventInstance) => void;
+  private eventResolvedListener?: (resolution: EventResolution) => void;
+  private activeEvent: EventInstance | null;
 
   public constructor() {
     super(UIScene.KEY);
     this.timeButtons = [];
     this.knightPanelVisible = false;
+    this.craftingPanelVisible = false;
+    this.eventChoiceButtons = [];
+    this.activeEvent = null;
+    this.debugPanelVisible = false;
   }
 
   /**
    * Builds the overlay UI and subscribes to shared game events.
    */
-  public create(): void {
+  public override create(): void {
     this.buildResourceBar();
     this.buildTimeController();
     this.buildKnightPanel();
     this.buildKnightToggle();
+    this.buildCraftingPanel();
+    this.buildCraftingToggle();
+    this.buildDebugPanel();
+    this.buildDebugToggle();
+    this.buildEventModal();
     this.registerEventListeners();
 
     this.updateKnightToggleAppearance();
+    this.updateCraftingToggleAppearance();
+    this.updateDebugToggleAppearance();
     this.updateResourceDisplay(resourceManager.getSnapshot());
+    this.updateEconomyForecast(economySystem.getWeeklyForecast());
     this.highlightTimeButtons(timeSystem.getTimeScale());
+
+    const pendingEvent = eventSystem.getActiveEvent();
+    if (pendingEvent) {
+      this.handleNarrativeEventPresented(pendingEvent);
+    }
   }
 
   /**
@@ -92,25 +135,42 @@ export default class UIScene extends Phaser.Scene {
    */
   private buildResourceBar(): void {
     const panelWidth = 440;
-    const panelHeight = 56;
+    const panelHeight = 108;
     const container = this.add.container(16, 16);
 
     const background = this.add.rectangle(0, 0, panelWidth, panelHeight, PANEL_BACKGROUND_COLOR, 0.9);
     background.setOrigin(0, 0);
     background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.2);
 
-    this.resourceText = this.add.text(16, panelHeight / 2, "", {
+    this.resourceText = this.add.text(16, 12, "", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "18px",
       color: TEXT_PRIMARY_COLOR
     });
-    this.resourceText.setOrigin(0, 0.5);
+    this.resourceText.setOrigin(0, 0);
+
+    this.economyCurrentText = this.add.text(16, 40, "", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "15px",
+      color: TEXT_MUTED_COLOR
+    });
+    this.economyCurrentText.setOrigin(0, 0);
+
+    this.economyNextText = this.add.text(16, 62, "", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "15px",
+      color: TEXT_MUTED_COLOR
+    });
+    this.economyNextText.setOrigin(0, 0);
 
     container.add(background);
     container.add(this.resourceText);
+    container.add(this.economyCurrentText);
+    container.add(this.economyNextText);
     container.setDepth(1000);
     container.setScrollFactor(0);
   }
+
 
   /**
    * Constructs the time control buttons, wiring pointer interactions for speed adjustment.
@@ -210,6 +270,27 @@ export default class UIScene extends Phaser.Scene {
     this.add.existing(this.knightPanel);
   }
 
+  private buildCraftingPanel(): void {
+    const panelX = 16;
+    const panelY = 88;
+    this.craftingPanel = new CraftingPanel(this, panelX, panelY);
+    this.craftingPanel.setDepth(880);
+    this.craftingPanel.setVisible(false);
+    this.craftingPanel.setActive(false);
+    this.add.existing(this.craftingPanel);
+  }
+
+  private buildDebugPanel(): void {
+    const panelWidth = 360;
+    const panelX = (this.scale.width - panelWidth) / 2;
+    const panelY = 96;
+    this.debugPanel = new DebugPanel(this, panelX, panelY);
+    this.debugPanel.setDepth(870);
+    this.debugPanel.setVisible(false);
+    this.debugPanel.setActive(false);
+    this.add.existing(this.debugPanel);
+  }
+
   /**
    * Creates the toggle button used to show or hide the knight panel.
    */
@@ -260,6 +341,187 @@ export default class UIScene extends Phaser.Scene {
     this.knightToggle = { container, background, label };
   }
 
+  private buildCraftingToggle(): void {
+    const buttonWidth = KNIGHT_BUTTON_WIDTH;
+    const buttonHeight = KNIGHT_BUTTON_HEIGHT;
+    const x = 16 + buttonWidth / 2;
+    const y = KNIGHT_BUTTON_OFFSET_Y + 64;
+    const container = this.add.container(x, y);
+
+    const background = this.add.rectangle(0, 0, buttonWidth, buttonHeight, BUTTON_IDLE_COLOR, 1);
+    background.setOrigin(0.5);
+    background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
+    background.setInteractive({ useHandCursor: true });
+
+    const label = this.add.text(0, 0, "Forge", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "16px",
+      fontStyle: "bold",
+      color: TEXT_MUTED_COLOR
+    });
+    label.setOrigin(0.5);
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
+      if (!this.craftingPanelVisible) {
+        background.setFillStyle(BUTTON_HOVER_COLOR, 1);
+      }
+    });
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
+      this.updateCraftingToggleAppearance();
+    });
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => {
+      this.toggleCraftingPanel();
+    });
+
+    container.add(background);
+    container.add(label);
+    container.setDepth(960);
+    container.setScrollFactor(0);
+
+    this.craftingToggle = { container, background, label };
+  }
+
+  private buildDebugToggle(): void {
+    const buttonWidth = KNIGHT_BUTTON_WIDTH;
+    const buttonHeight = KNIGHT_BUTTON_HEIGHT;
+    const x = 16 + buttonWidth / 2;
+    const y = KNIGHT_BUTTON_OFFSET_Y + 128;
+    const container = this.add.container(x, y);
+
+    const background = this.add.rectangle(0, 0, buttonWidth, buttonHeight, BUTTON_IDLE_COLOR, 1);
+    background.setOrigin(0.5);
+    background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
+    background.setInteractive({ useHandCursor: true });
+
+    const label = this.add.text(0, 0, "Debug", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "16px",
+      fontStyle: "bold",
+      color: TEXT_MUTED_COLOR
+    });
+    label.setOrigin(0.5);
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
+      if (!this.debugPanelVisible) {
+        background.setFillStyle(BUTTON_HOVER_COLOR, 1);
+      }
+    });
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
+      this.updateDebugToggleAppearance();
+    });
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => {
+      this.toggleDebugPanel();
+    });
+
+    container.add(background);
+    container.add(label);
+    container.setDepth(865);
+    container.setScrollFactor(0);
+
+    this.debugToggle = { container, background, label };
+  }
+
+  /**
+   * Builds the modal container used to display weekly narrative events.
+   */
+  private buildEventModal(): void {
+    const overlay = this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 0.55);
+    overlay.setOrigin(0, 0);
+    overlay.setDepth(1950);
+    overlay.setScrollFactor(0);
+    overlay.setVisible(false);
+    overlay.setInteractive({ useHandCursor: false });
+    this.eventOverlay = overlay;
+
+    const width = 540;
+    const height = 380;
+    const x = (this.scale.width - width) / 2;
+    const y = (this.scale.height - height) / 2;
+    const container = this.add.container(x, y);
+    container.setDepth(2000);
+    container.setScrollFactor(0);
+    container.setVisible(false);
+
+    const background = this.add.rectangle(0, 0, width, height, PANEL_BACKGROUND_COLOR, 0.96);
+    background.setOrigin(0, 0);
+    background.setStrokeStyle(2, PANEL_STROKE_COLOR, 0.6);
+
+    const title = this.add.text(width / 2, 28, "", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "24px",
+      fontStyle: "bold",
+      color: TEXT_PRIMARY_COLOR
+    });
+    title.setOrigin(0.5, 0.5);
+
+    const prompt = this.add.text(24, 68, "", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "18px",
+      color: TEXT_PRIMARY_COLOR,
+      wordWrap: { width: width - 48 }
+    });
+    prompt.setOrigin(0, 0);
+
+    const result = this.add.text(24, height - 120, "", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "17px",
+      color: TEXT_MUTED_COLOR,
+      wordWrap: { width: width - 48 }
+    });
+    result.setOrigin(0, 0);
+    result.setVisible(false);
+
+    const closeButtonWidth = 160;
+    const closeButtonHeight = 44;
+    const closeButtonY = height - closeButtonHeight - 20;
+    const closeContainer = this.add.container(width / 2 - closeButtonWidth / 2, closeButtonY);
+
+    const closeBackground = this.add.rectangle(0, 0, closeButtonWidth, closeButtonHeight, BUTTON_IDLE_COLOR, 1);
+    closeBackground.setOrigin(0, 0);
+    closeBackground.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.3);
+    closeBackground.setInteractive({ useHandCursor: true });
+
+    const closeLabel = this.add.text(closeButtonWidth / 2, closeButtonHeight / 2, "繼續", {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "20px",
+      color: TEXT_PRIMARY_COLOR,
+      fontStyle: "bold"
+    });
+    closeLabel.setOrigin(0.5);
+
+    closeBackground.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
+      closeBackground.setFillStyle(BUTTON_HOVER_COLOR, 1);
+    });
+
+    closeBackground.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
+      closeBackground.setFillStyle(BUTTON_IDLE_COLOR, 1);
+    });
+
+    closeBackground.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => {
+      this.hideEventModal();
+    });
+
+    closeContainer.add(closeBackground);
+    closeContainer.add(closeLabel);
+    closeContainer.setVisible(false);
+
+    container.add(background);
+    container.add(title);
+    container.add(prompt);
+    container.add(result);
+    container.add(closeContainer);
+
+    this.eventModal = container;
+    this.eventTitleText = title;
+    this.eventPromptText = prompt;
+    this.eventResultText = result;
+    this.eventCloseButton = closeContainer;
+  }
+
   /**
    * Subscribes to resource and time events emitted through the shared event bus.
    */
@@ -272,8 +534,23 @@ export default class UIScene extends Phaser.Scene {
       this.highlightTimeButtons(scale);
     };
 
+    this.economyListener = (forecast: EconomyForecast) => {
+      this.updateEconomyForecast(forecast);
+    };
+
+    this.eventPresentedListener = (instance: EventInstance) => {
+      this.handleNarrativeEventPresented(instance);
+    };
+
+    this.eventResolvedListener = (resolution: EventResolution) => {
+      this.handleNarrativeEventResolved(resolution);
+    };
+
     EventBus.on(GameEvent.ResourcesUpdated, this.resourceListener, this);
     EventBus.on(GameEvent.TimeScaleChanged, this.timeScaleListener, this);
+    EventBus.on(GameEvent.EconomyForecastUpdated, this.economyListener, this);
+    EventBus.on(GameEvent.NarrativeEventPresented, this.eventPresentedListener, this);
+    EventBus.on(GameEvent.NarrativeEventResolved, this.eventResolvedListener, this);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.unregisterEventListeners();
@@ -292,6 +569,20 @@ export default class UIScene extends Phaser.Scene {
       EventBus.off(GameEvent.TimeScaleChanged, this.timeScaleListener, this);
     }
 
+    if (this.economyListener) {
+      EventBus.off(GameEvent.EconomyForecastUpdated, this.economyListener, this);
+    }
+
+    if (this.eventPresentedListener) {
+      EventBus.off(GameEvent.NarrativeEventPresented, this.eventPresentedListener, this);
+      this.eventPresentedListener = undefined;
+    }
+
+    if (this.eventResolvedListener) {
+      EventBus.off(GameEvent.NarrativeEventResolved, this.eventResolvedListener, this);
+      this.eventResolvedListener = undefined;
+    }
+
     if (this.knightToggle) {
       this.knightToggle.container.destroy(true);
       this.knightToggle = undefined;
@@ -302,8 +593,48 @@ export default class UIScene extends Phaser.Scene {
       this.knightPanel = undefined;
     }
 
+    if (this.craftingToggle) {
+      this.craftingToggle.container.destroy(true);
+      this.craftingToggle = undefined;
+    }
+
+    if (this.craftingPanel) {
+      this.craftingPanel.destroy();
+      this.craftingPanel = undefined;
+    }
+
+    if (this.debugToggle) {
+      this.debugToggle.container.destroy(true);
+      this.debugToggle = undefined;
+    }
+
+    if (this.debugPanel) {
+      this.debugPanel.destroy();
+      this.debugPanel = undefined;
+    }
+
+    this.clearEventChoices();
+
+    if (this.eventModal) {
+      this.eventModal.destroy(true);
+      this.eventModal = undefined;
+    }
+
+    if (this.eventOverlay) {
+      this.eventOverlay.destroy();
+      this.eventOverlay = undefined;
+    }
+
+    this.eventTitleText = undefined;
+    this.eventPromptText = undefined;
+    this.eventResultText = undefined;
+    this.eventCloseButton = undefined;
+    this.activeEvent = null;
+
     this.timeButtons.length = 0;
     this.knightPanelVisible = false;
+    this.craftingPanelVisible = false;
+    this.debugPanelVisible = false;
   }
 
   /**
@@ -318,6 +649,260 @@ export default class UIScene extends Phaser.Scene {
 
     this.resourceText.setText(formatted);
   }
+
+  /**
+   * Updates the weekly economy summary text.
+   */
+  private updateEconomyForecast(forecast: EconomyForecast): void {
+    const currentLine = this.formatForecastLine("This Week", forecast.currentWeek);
+    const nextLine = this.formatForecastLine("Next Week", forecast.nextWeek);
+
+    this.economyCurrentText.setText(currentLine);
+    this.economyCurrentText.setColor(
+      forecast.currentWeek.deficits.length > 0 ? TEXT_WARNING_COLOR : TEXT_MUTED_COLOR
+    );
+
+    this.economyNextText.setText(nextLine);
+    this.economyNextText.setColor(
+      forecast.nextWeek.deficits.length > 0 ? TEXT_WARNING_COLOR : TEXT_MUTED_COLOR
+    );
+  }
+
+  /**
+   * Formats a weekly projection into a concise summary line.
+   */
+  private formatForecastLine(label: string, projection: WeeklyProjection): string {
+    const segments = RESOURCE_ORDER.map((resource) => {
+      const net = Math.round(projection.net[resource]);
+      const total = Math.round(projection.resultingTotals[resource]);
+      const sign = net >= 0 ? "+" : "";
+      return `${RESOURCE_LABEL[resource]} ${sign}${net} (${total})`;
+    });
+
+    const deficitSuffix =
+      projection.deficits.length > 0
+        ? ` DEFICIT: ${projection.deficits.map((resource) => RESOURCE_LABEL[resource]).join(", ")}`
+        : "";
+
+    return `${label} - Week ${projection.weekNumber}: ${segments.join("  ")}${deficitSuffix}`;
+  }
+
+  /**
+   * Handles presentation of a newly drawn event instance.
+   */
+  private handleNarrativeEventPresented(instance: EventInstance): void {
+    this.displayEventInstance(instance);
+  }
+
+  /**
+   * Updates the modal when an event choice resolves.
+   */
+  private handleNarrativeEventResolved(resolution: EventResolution): void {
+    if (!this.eventResultText) {
+      return;
+    }
+
+    const summary = this.composeEventResolutionText(resolution);
+    this.eventResultText.setText(summary);
+    this.eventResultText.setColor(
+      resolution.outcome === "success" ? TEXT_PRIMARY_COLOR : TEXT_WARNING_COLOR
+    );
+    this.eventResultText.setVisible(true);
+    this.setEventChoicesEnabled(false);
+
+    if (this.eventCloseButton) {
+      this.eventCloseButton.setVisible(true);
+    }
+  }
+
+  /**
+   * Displays the supplied event within the modal container.
+   */
+  private displayEventInstance(instance: EventInstance): void {
+    this.activeEvent = instance;
+
+    if (!this.eventModal || !this.eventTitleText || !this.eventPromptText) {
+      return;
+    }
+
+    if (this.eventOverlay) {
+      this.eventOverlay.setVisible(true);
+      this.eventOverlay.setInteractive({ useHandCursor: false });
+    }
+
+    this.eventModal.setVisible(true);
+    this.eventTitleText.setText(instance.title);
+    this.eventPromptText.setText(instance.prompt);
+
+    if (this.eventResultText) {
+      this.eventResultText.setVisible(false);
+      this.eventResultText.setText("");
+    }
+
+    if (this.eventCloseButton) {
+      this.eventCloseButton.setVisible(false);
+    }
+
+    this.clearEventChoices();
+
+    instance.choices.forEach((choice, index) => {
+      const button = this.createEventChoiceButton(choice, index);
+      this.eventChoiceButtons.push(button);
+      this.eventModal?.add(button);
+    });
+
+    this.setEventChoicesEnabled(true);
+  }
+
+  /**
+   * Destroys existing choice buttons prior to repopulating the modal.
+   */
+  private clearEventChoices(): void {
+    while (this.eventChoiceButtons.length > 0) {
+      const button = this.eventChoiceButtons.pop();
+      button?.destroy(true);
+    }
+  }
+
+  /**
+   * Creates an interactive button for an event choice.
+   */
+  private createEventChoiceButton(choice: EventInstance["choices"][number], index: number): Phaser.GameObjects.Container {
+    const buttonWidth = 480;
+    const buttonHeight = 54;
+    const spacing = 12;
+    const offsetX = 30;
+    const offsetY = 150 + index * (buttonHeight + spacing);
+
+    const container = this.add.container(offsetX, offsetY);
+
+    const background = this.add.rectangle(0, 0, buttonWidth, buttonHeight, BUTTON_IDLE_COLOR, 1);
+    background.setOrigin(0, 0);
+    background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.25);
+    background.setInteractive({ useHandCursor: true });
+
+    const label = this.add.text(buttonWidth / 2, buttonHeight / 2, choice.label, {
+      fontFamily: "Segoe UI, sans-serif",
+      fontSize: "18px",
+      color: TEXT_PRIMARY_COLOR
+    });
+    label.setOrigin(0.5);
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
+      if (container.getData("enabled") !== false) {
+        background.setFillStyle(BUTTON_HOVER_COLOR, 1);
+      }
+    });
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
+      if (container.getData("enabled") !== false) {
+        background.setFillStyle(BUTTON_IDLE_COLOR, 1);
+      }
+    });
+
+    background.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => {
+      this.handleEventChoiceSelected(choice.id);
+    });
+
+    container.add(background);
+    container.add(label);
+    container.setDataEnabled();
+    container.setData("choiceId", choice.id);
+    container.setData("background", background);
+    container.setData("label", label);
+    container.setData("enabled", true);
+
+    return container;
+  }
+
+  /**
+   * Enables or disables the choice buttons after a selection is made.
+   */
+  private setEventChoicesEnabled(enabled: boolean): void {
+    this.eventChoiceButtons.forEach((container) => {
+      const background = container.getData("background") as Phaser.GameObjects.Rectangle | undefined;
+      const label = container.getData("label") as Phaser.GameObjects.Text | undefined;
+
+      if (!background || !label) {
+        return;
+      }
+
+      if (enabled) {
+        background.setInteractive({ useHandCursor: true });
+        background.setFillStyle(BUTTON_IDLE_COLOR, 1);
+        label.setColor(TEXT_PRIMARY_COLOR);
+      } else {
+        background.disableInteractive();
+      }
+
+      container.setData("enabled", enabled);
+    });
+  }
+
+  /**
+   * Handles pointer interaction when a choice button is activated.
+   */
+  private handleEventChoiceSelected(choiceId: string): void {
+    const selected = this.eventChoiceButtons.find((container) => container.getData("choiceId") === choiceId);
+    if (selected) {
+      const background = selected.getData("background") as Phaser.GameObjects.Rectangle | undefined;
+      const label = selected.getData("label") as Phaser.GameObjects.Text | undefined;
+      background?.setFillStyle(BUTTON_ACTIVE_COLOR, 1);
+      label?.setColor(BUTTON_ACTIVE_TEXT_COLOR);
+    }
+
+    this.setEventChoicesEnabled(false);
+    eventSystem.applyEventChoice(choiceId);
+  }
+
+  /**
+   * Converts an event resolution into a multi-line description for display.
+   */
+  private composeEventResolutionText(resolution: EventResolution): string {
+    const lines: string[] = [];
+    lines.push(resolution.outcome === "success" ? "成功" : "失敗");
+    lines.push(resolution.description);
+
+    if (resolution.effects.length > 0) {
+      lines.push("");
+      resolution.effects.forEach((effect) => {
+        const label = RESOURCE_LABEL[effect.resource as ResourceType] ?? effect.resource;
+        const isInteger = Math.abs(effect.amount - Math.round(effect.amount)) < 0.0001;
+        const valueText = isInteger ? Math.round(effect.amount).toString() : effect.amount.toFixed(1);
+        const prefix = effect.amount >= 0 ? "+" : "";
+        lines.push(`${label} ${prefix}${valueText}`);
+      });
+    }
+
+    return lines.join("\n");
+  }
+
+  /**
+   * Hides the modal and clears the active event reference.
+   */
+  private hideEventModal(): void {
+    this.activeEvent = null;
+    this.clearEventChoices();
+
+    if (this.eventModal) {
+      this.eventModal.setVisible(false);
+    }
+
+    if (this.eventOverlay) {
+      this.eventOverlay.setVisible(false);
+      this.eventOverlay.disableInteractive();
+    }
+
+    if (this.eventResultText) {
+      this.eventResultText.setVisible(false);
+      this.eventResultText.setText("");
+    }
+
+    if (this.eventCloseButton) {
+      this.eventCloseButton.setVisible(false);
+    }
+  }
+
 
   /**
    * Applies visual highlighting to the active time control button.
@@ -385,4 +970,96 @@ export default class UIScene extends Phaser.Scene {
       this.knightToggle.label.setColor(TEXT_MUTED_COLOR);
     }
   }
+
+  private toggleCraftingPanel(): void {
+    this.setCraftingPanelVisibility(!this.craftingPanelVisible);
+  }
+
+  private setCraftingPanelVisibility(visible: boolean): void {
+    if (!this.craftingPanel) {
+      return;
+    }
+
+    this.craftingPanelVisible = visible;
+    this.craftingPanel.setVisible(visible);
+    this.craftingPanel.setActive(visible);
+
+    if (visible) {
+      this.craftingPanel.setDepth(940);
+      this.children.bringToTop(this.craftingPanel);
+    }
+
+    if (this.craftingToggle) {
+      this.children.bringToTop(this.craftingToggle.container);
+    }
+
+    this.updateCraftingToggleAppearance();
+  }
+
+  private updateCraftingToggleAppearance(): void {
+    if (!this.craftingToggle) {
+      return;
+    }
+
+    if (this.craftingPanelVisible) {
+      this.craftingToggle.background.setFillStyle(BUTTON_ACTIVE_COLOR, 1);
+      this.craftingToggle.background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.6);
+      this.craftingToggle.label.setColor(BUTTON_ACTIVE_TEXT_COLOR);
+    } else {
+      this.craftingToggle.background.setFillStyle(BUTTON_IDLE_COLOR, 1);
+      this.craftingToggle.background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
+      this.craftingToggle.label.setColor(TEXT_MUTED_COLOR);
+    }
+  }
+
+  private toggleDebugPanel(): void {
+    this.setDebugPanelVisibility(!this.debugPanelVisible);
+  }
+
+  private setDebugPanelVisibility(visible: boolean): void {
+    if (!this.debugPanel) {
+      return;
+    }
+
+    this.debugPanelVisible = visible;
+    this.debugPanel.setVisible(visible);
+    this.debugPanel.setActive(visible);
+
+    if (visible) {
+      this.debugPanel.setDepth(870);
+      this.children.bringToTop(this.debugPanel);
+    }
+
+    if (this.debugToggle) {
+      this.children.bringToTop(this.debugToggle.container);
+    }
+
+    this.updateDebugToggleAppearance();
+  }
+
+  private updateDebugToggleAppearance(): void {
+    if (!this.debugToggle) {
+      return;
+    }
+
+    if (this.debugPanelVisible) {
+      this.debugToggle.background.setFillStyle(BUTTON_ACTIVE_COLOR, 1);
+      this.debugToggle.background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.6);
+      this.debugToggle.label.setColor(BUTTON_ACTIVE_TEXT_COLOR);
+    } else {
+      this.debugToggle.background.setFillStyle(BUTTON_IDLE_COLOR, 1);
+      this.debugToggle.background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
+      this.debugToggle.label.setColor(TEXT_MUTED_COLOR);
+    }
+  }
 }
+
+
+
+
+
+
+
+
+
+

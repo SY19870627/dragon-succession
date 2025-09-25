@@ -1,4 +1,19 @@
 import type { ResourceSnapshot } from "../systems/ResourceManager";
+import type { BuildingState } from "./buildings";
+import type { Item } from "./game";
+import type { EventLogEntry } from "./events";
+
+/**
+ * Identifies the equipment slots available to a knight.
+ */
+export interface KnightEquipmentSlots {
+  /** Instance identifier assigned to the equipped weapon. */
+  weaponId?: string;
+  /** Instance identifier assigned to the equipped armour. */
+  armorId?: string;
+  /** Instance identifiers for trinkets currently worn. */
+  trinketIds: string[];
+}
 
 /**
  * Identifiers describing the combat role a knight specializes in.
@@ -42,6 +57,44 @@ export interface KnightRecord {
   fatigue: number;
   /** Current injury severity, ranges from 0 (healthy) to 100 (incapacitated). */
   injury: number;
+  /** Equipped gear references for runtime stat calculation. */
+  equipment: KnightEquipmentSlots;
+}
+
+/**
+ * Representation of an inventory item persisted between sessions.
+ */
+export interface InventoryItem extends Item {
+  /** Runtime identifier allocated when the item enters the inventory. */
+  instanceId: string;
+  /** Quantity stored when the entry represents a stack. */
+  quantity: number;
+  /** Tag describing how the item is used in gameplay. */
+  itemType: NonNullable<Item["itemType"]>;
+  /** Identifier of the source item definition. */
+  baseItemId: string;
+}
+
+/**
+ * Persisted inventory contents for the player's vault.
+ */
+export interface InventoryState {
+  /** Sequential identifier allocated to the next item added to the inventory. */
+  nextInstanceId: number;
+  /** Stored inventory entries including materials and equipment. */
+  items: InventoryItem[];
+}
+
+/**
+ * Tracks accumulated intelligence on the dragon's movements during a run.
+ */
+export interface DragonIntelState {
+  /** Current intel fragments recovered by expeditions. */
+  readonly current: number;
+  /** Threshold required to reveal the dragon's lair. */
+  readonly threshold: number;
+  /** Flag indicating whether the lair has been revealed on the world map. */
+  readonly lairUnlocked: boolean;
 }
 
 /**
@@ -94,6 +147,18 @@ export interface GameState {
   resources: ResourceSnapshot;
   /** Pending tasks or constructions awaiting completion. */
   queue: QueueItemState[];
+  /** Item inventory including forged equipment and crafting materials. */
+  inventory: InventoryState;
   /** Knights roster, candidate listings, and generator metadata. */
   knights: KnightsState;
+  /** Player progression for castle infrastructure. */
+  buildings: BuildingState;
+  /** Intelligence gathered toward locating the dragon's lair. */
+  dragonIntel: DragonIntelState;
+  /** Seed controlling deterministic weekly narrative event rolls. */
+  eventSeed: number;
+  /** Identifier for the next forced narrative event, if scheduled. */
+  pendingEventId?: string;
+  /** Chronological record of resolved narrative events. */
+  eventLog: EventLogEntry[];
 }

@@ -1,22 +1,57 @@
 import Phaser from "phaser";
 
-import type { KnightsSnapshot } from "../types/state";
+import type { BuildingSnapshot } from "../types/buildings";
+import type { EconomyForecast } from "../types/economy";
+import type { EventInstance, EventLogEntry, EventResolution } from "../types/events";
+import type { BalanceConfig } from "../types/balance";
+import type { InventoryState, KnightsSnapshot } from "../types/state";
+import type { TelemetrySnapshot } from "./Telemetry";
 import type { ResourceSnapshot } from "./ResourceManager";
 
 export const GameEvent = {
   Start: "game:start",
   ResourcesUpdated: "resource:updated",
   TimeScaleChanged: "time:scaleChanged",
-  KnightStateUpdated: "knight:stateUpdated"
+  KnightStateUpdated: "knight:stateUpdated",
+  InventoryUpdated: "inventory:updated",
+  WeekAdvanced: "time:weekAdvanced",
+  WeekReadyForEconomy: "time:weekReadyForEconomy",
+  EconomyForecastUpdated: "economy:forecastUpdated",
+  BuildingsUpdated: "building:updated",
+  NarrativeEventPresented: "event:presented",
+  NarrativeEventResolved: "event:resolved",
+  NarrativeEventLogUpdated: "event:logUpdated",
+  TelemetryUpdated: "telemetry:updated",
+  BalanceConfigUpdated: "balance:configUpdated"
 } as const;
 
 export type GameEventKey = (typeof GameEvent)[keyof typeof GameEvent];
+
+/**
+ * Payload emitted when the simulation completes a weekly interval.
+ */
+export interface WeekTickPayload {
+  /** Count of weeks that have fully elapsed since the current session began. */
+  weekCompleted: number;
+  /** Cumulative scaled seconds that have passed. */
+  totalElapsedSeconds: number;
+}
 
 type GameEventMap = {
   [GameEvent.Start]: void;
   [GameEvent.ResourcesUpdated]: ResourceSnapshot;
   [GameEvent.TimeScaleChanged]: number;
   [GameEvent.KnightStateUpdated]: KnightsSnapshot;
+  [GameEvent.InventoryUpdated]: InventoryState;
+  [GameEvent.WeekAdvanced]: WeekTickPayload;
+  [GameEvent.WeekReadyForEconomy]: WeekTickPayload;
+  [GameEvent.EconomyForecastUpdated]: EconomyForecast;
+  [GameEvent.BuildingsUpdated]: BuildingSnapshot;
+  [GameEvent.NarrativeEventPresented]: EventInstance;
+  [GameEvent.NarrativeEventResolved]: EventResolution;
+  [GameEvent.NarrativeEventLogUpdated]: EventLogEntry;
+  [GameEvent.TelemetryUpdated]: TelemetrySnapshot;
+  [GameEvent.BalanceConfigUpdated]: BalanceConfig;
 };
 
 type EventPayloadTuple<K extends GameEventKey> = GameEventMap[K] extends void

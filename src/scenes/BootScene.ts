@@ -61,7 +61,7 @@ export default class BootScene extends Phaser.Scene {
   /**
    * Generates placeholder textures before moving on to the preload scene.
    */
-  public create(): void {
+  public override create(): void {
     TEXTURE_BLUEPRINTS.forEach((blueprint) => {
       this.ensureTexture(blueprint);
     });

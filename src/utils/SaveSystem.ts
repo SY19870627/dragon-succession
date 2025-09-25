@@ -1,5 +1,19 @@
 import { KNIGHT_PROFESSIONS, KNIGHT_TRAITS } from "../data/KnightDefinitions";
-import type { GameState, KnightRecord, KnightsState, QueueItemState } from "../types/state";
+import { cloneBuildingState } from "../data/BuildingState";
+import { createDefaultDragonIntelState } from "../data/DragonIntel";
+import type { BuildingState } from "../types/buildings";
+import type {
+  DragonIntelState,
+  GameState,
+  InventoryItem,
+  InventoryState,
+  KnightEquipmentSlots,
+  KnightRecord,
+  KnightsState,
+  QueueItemState
+} from "../types/state";
+import type { ItemAffix, ResourceDelta } from "../types/game";
+import type { EventLogEntry } from "../types/events";
 
 const STORAGE_PREFIX = "dragon-succession:slot:";
 const INDEX_KEY = "dragon-succession:slots";
@@ -7,8 +21,11 @@ const RESOURCE_KEYS = ["gold", "food", "fame", "morale"] as const;
 
 const KNIGHT_PROFESSION_IDS = KNIGHT_PROFESSIONS.map((entry) => entry.id);
 const KNIGHT_TRAIT_IDS = KNIGHT_TRAITS.map((entry) => entry.id);
+const DEFAULT_INVENTORY_STATE: InventoryState = { nextInstanceId: 1, items: [] };
+const DEFAULT_DRAGON_INTEL_STATE: DragonIntelState = createDefaultDragonIntelState();
 
 type ResourceKey = (typeof RESOURCE_KEYS)[number];
+const BUILDING_IDS = ["TrainingGround", "Forge", "Infirmary", "Watchtower"] as const;
 
 type KnightAttributes = KnightRecord["attributes"];
 
@@ -88,13 +105,238 @@ const isKnightAttributes = (value: unknown): value is KnightAttributes => {
   );
 };
 
+const isEquipmentRecord = (value: unknown): value is KnightEquipmentSlots => {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  const weaponId = record.weaponId;
+  const armorId = record.armorId;
+  const trinketIds = record.trinketIds;
+
+  const weaponValid = weaponId === undefined || typeof weaponId === "string";
+  const armorValid = armorId === undefined || typeof armorId === "string";
+  if (!weaponValid || !armorValid) {
+    return false;
+  }
+
+  if (trinketIds === undefined) {
+    return true;
+  }
+
+  if (!Array.isArray(trinketIds)) {
+    return false;
+  }
+
+  return trinketIds.every((entry) => typeof entry === "string");
+};
+
+const isItemAffixArray = (value: unknown): value is ItemAffix[] => {
+  if (!Array.isArray(value)) {
+    return false;
+  }
+
+  return value.every((entry) => {
+    if (!isPlainObject(entry)) {
+      return false;
+    }
+
+    const record = entry as Record<string, unknown>;
+    const id = record.id;
+    const label = record.label;
+    const stat = record.stat;
+    const amount = record.value;
+
+    const statValid = stat === "strength" || stat === "intellect" || stat === "vitality";
+
+    return (
+      typeof id === "string" &&
+      typeof label === "string" &&
+      statValid &&
+      typeof amount === "number" &&
+      Number.isFinite(amount)
+    );
+  });
+};
+
+const isInventoryItemRecord = (value: unknown): value is InventoryItem => {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  const {
+    id,
+    name,
+    description,
+    rarity,
+    value: itemValue,
+    tags,
+    effects,
+    instanceId,
+    baseItemId,
+    quantity,
+    itemType,
+    quality,
+    affixes,
+    equippedBy
+  } = record;
+
+  if (
+    typeof id !== "string" ||
+    typeof name !== "string" ||
+    typeof description !== "string" ||
+    typeof rarity !== "string" ||
+    typeof itemValue !== "number" ||
+    !Number.isFinite(itemValue) ||
+    !Array.isArray(tags) ||
+    !Array.isArray(effects) ||
+    typeof instanceId !== "string" ||
+    typeof baseItemId !== "string" ||
+    typeof quantity !== "number" ||
+    !Number.isFinite(quantity)
+  ) {
+    return false;
+  }
+
+  if (itemType !== "equipment" && itemType !== "material") {
+    return false;
+  }
+
+  if (quality !== undefined && !(quality === "crude" || quality === "standard" || quality === "fine" || quality === "masterwork")) {
+    return false;
+  }
+
+  if (affixes !== undefined && !isItemAffixArray(affixes as unknown)) {
+    return false;
+  }
+
+  if (equippedBy !== undefined && typeof equippedBy !== "string") {
+    return false;
+  }
+
+  const effectsValid = effects.every((effect) => {
+    if (!isPlainObject(effect)) {
+      return false;
+    }
+
+    const recordEffect = effect as Record<string, unknown>;
+    const resource = recordEffect.resource;
+    const amount = recordEffect.amount;
+    return typeof resource === "string" && typeof amount === "number" && Number.isFinite(amount);
+  });
+
+  const tagsValid = tags.every((tag) => typeof tag === "string");
+
+  return effectsValid && tagsValid;
+};
+
+const isDragonIntelStateRecord = (value: unknown): value is DragonIntelState => {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  const current = record.current;
+  const threshold = record.threshold;
+  const lairUnlocked = record.lairUnlocked;
+
+  return (
+    typeof current === "number" &&
+    Number.isFinite(current) &&
+    typeof threshold === "number" &&
+    Number.isFinite(threshold) &&
+    typeof lairUnlocked === "boolean"
+  );
+};
+
+const isResourceDelta = (value: unknown): value is ResourceDelta => {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  const resource = record.resource;
+  const amount = record.amount;
+
+  return (
+    typeof resource === "string" &&
+    RESOURCE_KEYS.includes(resource as ResourceKey) &&
+    typeof amount === "number" &&
+    Number.isFinite(amount)
+  );
+};
+
+const isResourceDeltaArray = (value: unknown): value is ResourceDelta[] =>
+  Array.isArray(value) && value.every((entry) => isResourceDelta(entry));
+
+const isEventLogEntry = (value: unknown): value is EventLogEntry => {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  const eventId = record.eventId;
+  const eventTitle = record.eventTitle;
+  const choiceId = record.choiceId;
+  const choiceLabel = record.choiceLabel;
+  const outcome = record.outcome;
+  const description = record.description;
+  const effects = record.effects;
+  const weekNumber = record.weekNumber;
+  const timestamp = record.timestamp;
+  const followUpEventId = record.followUpEventId;
+
+  const outcomeValid = outcome === "success" || outcome === "failure";
+  const followUpValid = typeof followUpEventId === "undefined" || typeof followUpEventId === "string";
+
+  return (
+    typeof eventId === "string" &&
+    typeof eventTitle === "string" &&
+    typeof choiceId === "string" &&
+    typeof choiceLabel === "string" &&
+    outcomeValid &&
+    typeof description === "string" &&
+    isResourceDeltaArray(effects) &&
+    typeof weekNumber === "number" &&
+    Number.isFinite(weekNumber) &&
+    typeof timestamp === "number" &&
+    Number.isFinite(timestamp) &&
+    followUpValid
+  );
+};
+
+const isEventLogEntryArray = (value: unknown): value is EventLogEntry[] =>
+  Array.isArray(value) && value.every((entry) => isEventLogEntry(entry));
+
+const isInventoryStateRecord = (value: unknown): value is InventoryState => {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  const nextInstanceId = record.nextInstanceId;
+  const items = record.items;
+
+  if (typeof nextInstanceId !== "number" || !Number.isFinite(nextInstanceId)) {
+    return false;
+  }
+
+  if (!Array.isArray(items)) {
+    return false;
+  }
+
+  return items.every(isInventoryItemRecord);
+};
+
 const isKnightRecord = (value: unknown): value is KnightRecord => {
   if (!isPlainObject(value)) {
     return false;
   }
 
   const candidate = value as Record<string, unknown>;
-  const { id, name, epithet, profession, trait, fatigue, injury, attributes } = candidate;
+  const { id, name, epithet, profession, trait, fatigue, injury, attributes, equipment } = candidate;
 
   if (
     typeof id !== "string" ||
@@ -106,7 +348,8 @@ const isKnightRecord = (value: unknown): value is KnightRecord => {
     !Number.isFinite(fatigue) ||
     typeof injury !== "number" ||
     !Number.isFinite(injury) ||
-    !isKnightAttributes(attributes)
+    !isKnightAttributes(attributes) ||
+    !isEquipmentRecord(equipment)
   ) {
     return false;
   }
@@ -142,6 +385,25 @@ const isKnightsStateRecord = (value: unknown): value is KnightsState => {
   );
 };
 
+const isBuildingStateRecord = (value: unknown): value is BuildingState => {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  const levels = candidate.levels;
+  const storedTrainingPoints = candidate.storedTrainingPoints;
+
+  if (!isPlainObject(levels) || typeof storedTrainingPoints !== "number" || !Number.isFinite(storedTrainingPoints)) {
+    return false;
+  }
+
+  return BUILDING_IDS.every((id) => {
+    const level = (levels as Record<string, unknown>)[id];
+    return typeof level === "number" && Number.isFinite(level);
+  });
+};
+
 const isGameStateRecord = (value: unknown): value is GameState => {
   if (!isPlainObject(value)) {
     return false;
@@ -153,7 +415,13 @@ const isGameStateRecord = (value: unknown): value is GameState => {
   const timeScale = candidate.timeScale;
   const resources = candidate.resources;
   const queue = candidate.queue;
+  const inventory = candidate.inventory;
   const knights = candidate.knights;
+  const buildings = candidate.buildings;
+  const eventSeed = candidate.eventSeed;
+  const pendingEventId = candidate.pendingEventId;
+  const eventLog = candidate.eventLog;
+  const dragonIntel = candidate.dragonIntel;
 
   if (
     typeof version !== "number" ||
@@ -164,7 +432,14 @@ const isGameStateRecord = (value: unknown): value is GameState => {
     !Number.isFinite(timeScale) ||
     !isResourceSnapshot(resources) ||
     !Array.isArray(queue) ||
-    !isKnightsStateRecord(knights)
+    (inventory !== undefined && !isInventoryStateRecord(inventory)) ||
+    !isKnightsStateRecord(knights) ||
+    !isBuildingStateRecord(buildings) ||
+    typeof eventSeed !== "number" ||
+    !Number.isFinite(eventSeed) ||
+    (typeof dragonIntel !== "undefined" && !isDragonIntelStateRecord(dragonIntel)) ||
+    (typeof pendingEventId !== "undefined" && typeof pendingEventId !== "string") ||
+    (typeof eventLog !== "undefined" && !isEventLogEntryArray(eventLog))
   ) {
     return false;
   }
@@ -246,7 +521,29 @@ export default class SaveSystem {
       updatedAt: timestamp,
       resources: { ...state.resources },
       queue: state.queue.map((item) => ({ ...item })),
-      knights: SaveSystem.cloneKnightsState(state.knights)
+      inventory: SaveSystem.cloneInventoryState(state.inventory ?? DEFAULT_INVENTORY_STATE),
+      knights: SaveSystem.cloneKnightsState(state.knights),
+      buildings: cloneBuildingState(state.buildings),
+      dragonIntel: SaveSystem.cloneDragonIntelState(state.dragonIntel ?? DEFAULT_DRAGON_INTEL_STATE),
+      eventSeed: state.eventSeed,
+      pendingEventId: state.pendingEventId,
+      eventLog: (state.eventLog ?? []).map(SaveSystem.cloneEventLogEntry)
+    };
+  }
+
+  private static cloneInventoryState(state: InventoryState): InventoryState {
+    return {
+      nextInstanceId: state.nextInstanceId,
+      items: state.items.map(SaveSystem.cloneInventoryItem)
+    };
+  }
+
+  private static cloneInventoryItem(item: InventoryItem): InventoryItem {
+    return {
+      ...item,
+      effects: item.effects.map((effect) => ({ ...effect })),
+      tags: [...item.tags],
+      affixes: item.affixes ? item.affixes.map((affix) => ({ ...affix })) : undefined
     };
   }
 
@@ -259,10 +556,30 @@ export default class SaveSystem {
     };
   }
 
+  private static cloneDragonIntelState(state: DragonIntelState): DragonIntelState {
+    return {
+      current: state.current,
+      threshold: state.threshold,
+      lairUnlocked: state.lairUnlocked
+    };
+  }
+
   private static cloneKnightRecord(record: KnightRecord): KnightRecord {
     return {
       ...record,
-      attributes: { ...record.attributes }
+      attributes: { ...record.attributes },
+      equipment: {
+        weaponId: record.equipment.weaponId,
+        armorId: record.equipment.armorId,
+        trinketIds: [...record.equipment.trinketIds]
+      }
+    };
+  }
+
+  private static cloneEventLogEntry(entry: EventLogEntry): EventLogEntry {
+    return {
+      ...entry,
+      effects: entry.effects.map((effect) => ({ ...effect }))
     };
   }
 
@@ -283,7 +600,13 @@ export default class SaveSystem {
         ...parsed,
         resources: { ...parsed.resources },
         queue: parsed.queue.map((item) => ({ ...item })),
-        knights: SaveSystem.cloneKnightsState(parsed.knights)
+        inventory: SaveSystem.cloneInventoryState(parsed.inventory ?? DEFAULT_INVENTORY_STATE),
+        knights: SaveSystem.cloneKnightsState(parsed.knights),
+        buildings: cloneBuildingState(parsed.buildings),
+        dragonIntel: SaveSystem.cloneDragonIntelState(parsed.dragonIntel ?? DEFAULT_DRAGON_INTEL_STATE),
+        eventSeed: parsed.eventSeed,
+        pendingEventId: parsed.pendingEventId,
+        eventLog: (parsed.eventLog ?? []).map(SaveSystem.cloneEventLogEntry)
       };
     } catch {
       adapter.removeItem(SaveSystem.toSlotKey(slotId));

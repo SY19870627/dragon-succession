@@ -1,6 +1,7 @@
-﻿import { KNIGHT_EPITHETS, KNIGHT_FIRST_NAMES, KNIGHT_PROFESSIONS, KNIGHT_TRAITS } from "../data/KnightDefinitions";
+import { KNIGHT_EPITHETS, KNIGHT_FIRST_NAMES, KNIGHT_PROFESSIONS, KNIGHT_TRAITS } from "../data/KnightDefinitions";
 import type {
   KnightAttributes,
+  KnightEquipmentSlots,
   KnightProfession,
   KnightRecord,
   KnightTraitId,
@@ -9,6 +10,8 @@ import type {
 } from "../types/state";
 import EventBus, { GameEvent } from "./EventBus";
 import RNG from "../utils/RNG";
+import inventorySystem from "./InventorySystem";
+import type { InventoryItem } from "../types/state";
 
 type KnightProfessionEntry = (typeof KNIGHT_PROFESSIONS)[number];
 
@@ -20,6 +23,14 @@ const MIN_ATTRIBUTE = 30;
 const MAX_ATTRIBUTE = 95;
 const MAX_FATIGUE = 100;
 const MAX_INJURY = 100;
+const MAX_TRINKETS = 3;
+
+const QUALITY_SCORE: Record<string, number> = {
+  crude: 2,
+  standard: 5,
+  fine: 9,
+  masterwork: 14
+};
 
 const createDefaultState = (): KnightsState => ({
   roster: [],
@@ -27,6 +38,8 @@ const createDefaultState = (): KnightsState => ({
   nextId: 1,
   candidateSeed: Date.now()
 });
+
+type EquipmentSlot = "weapon" | "armor" | "trinket";
 
 /**
  * Central coordinator for knight roster and recruitment pipelines.
@@ -47,7 +60,12 @@ class KnightManager {
    */
   public initialize(state?: KnightsState): void {
     if (state) {
-      this.state = state;
+      this.state = {
+        roster: state.roster.map((entry) => this.ensureEquipment(entry)),
+        candidates: state.candidates.map((entry) => this.ensureEquipment(entry)),
+        nextId: state.nextId,
+        candidateSeed: state.candidateSeed
+      };
     } else {
       this.state = createDefaultState();
     }
@@ -84,10 +102,30 @@ class KnightManager {
   }
 
   /**
+   * Produces a deep clone of the persisted knight state for saving to disk.
+   */
+  public getState(): KnightsState {
+    return {
+      roster: this.state.roster.map((knight) => this.cloneKnight(knight)),
+      candidates: this.state.candidates.map((knight) => this.cloneKnight(knight)),
+      nextId: this.state.nextId,
+      candidateSeed: this.state.candidateSeed
+    };
+  }
+
+  /**
    * Retrieves the active roster list.
    */
   public getRoster(): KnightRecord[] {
     return this.state.roster.map((knight) => this.cloneKnight(knight));
+  }
+
+  /**
+   * Retrieves a specific roster member by identifier.
+   */
+  public getKnightById(id: string): KnightRecord | undefined {
+    const match = this.state.roster.find((knight) => knight.id === id);
+    return match ? this.cloneKnight(match) : undefined;
   }
 
   /**
@@ -152,6 +190,7 @@ class KnightManager {
       this.emitSnapshot();
     }
   }
+
   /**
    * Retrieves the current candidate listing.
    */
@@ -181,7 +220,8 @@ class KnightManager {
     const recruited: KnightRecord = {
       ...candidate,
       fatigue: Math.max(0, Math.min(MAX_FATIGUE, Math.round(candidate.fatigue * 0.5))),
-      injury: Math.max(0, Math.min(MAX_INJURY, Math.round(candidate.injury * 0.5)))
+      injury: Math.max(0, Math.min(MAX_INJURY, Math.round(candidate.injury * 0.5))),
+      equipment: this.ensureEquipment(candidate).equipment
     };
 
     this.state.roster.push(recruited);
@@ -203,6 +243,7 @@ class KnightManager {
       return false;
     }
 
+    inventorySystem.clearAssignmentsForKnight(knightId);
     this.state.roster.splice(index, 1);
     this.emitSnapshot();
     return true;
@@ -219,6 +260,159 @@ class KnightManager {
     this.state.candidates.length = 0;
     this.ensureCandidateCapacity();
     this.emitSnapshot();
+  }
+
+  /**
+   * Computes an aggregate power score for the supplied knight.
+   */
+  public getPowerScore(knight: KnightRecord): number {
+    const base = knight.attributes;
+    let might = base.might;
+    let agility = base.agility;
+    let willpower = base.willpower;
+    let vitality = 0;
+    let equipmentQualityBonus = 0;
+
+    const equippedItems = this.resolveEquippedItems(knight.equipment);
+    equippedItems.forEach((item) => {
+      equipmentQualityBonus += QUALITY_SCORE[item.quality ?? ""] ?? 0;
+
+      (item.affixes ?? []).forEach((affix) => {
+        switch (affix.stat) {
+          case "strength":
+            might += affix.value;
+            break;
+          case "intellect":
+            willpower += affix.value;
+            break;
+          case "vitality":
+            vitality += affix.value;
+            break;
+          default:
+            break;
+        }
+      });
+    });
+
+    const attributeScore = might * 1.25 + agility * 1.1 + willpower * 1.2;
+    const vitalityScore = vitality * 1.5;
+    const score = attributeScore + vitalityScore + equipmentQualityBonus;
+    return Math.round(score);
+  }
+
+  /**
+   * Equips an item instance to the specified knight slot.
+   */
+  public equipItem(knightId: string, slot: EquipmentSlot, instanceId: string): boolean {
+    const knightIndex = this.state.roster.findIndex((entry) => entry.id === knightId);
+    if (knightIndex === -1) {
+      return false;
+    }
+
+    const item = inventorySystem.getItemByInstanceId(instanceId);
+    if (!item || item.itemType !== "equipment") {
+      return false;
+    }
+
+    if (item.equippedBy && item.equippedBy !== knightId) {
+      return false;
+    }
+
+    const rosterCopy = [...this.state.roster];
+    const knight = rosterCopy[knightIndex]!;
+    const equipment = this.normaliseEquipment(knight.equipment);
+    let changed = false;
+
+    if (slot === "weapon") {
+      if (equipment.weaponId === instanceId) {
+        return true;
+      }
+
+      if (equipment.weaponId) {
+        inventorySystem.assignToKnight(equipment.weaponId, undefined);
+      }
+
+      equipment.weaponId = instanceId;
+      changed = true;
+    } else if (slot === "armor") {
+      if (equipment.armorId === instanceId) {
+        return true;
+      }
+
+      if (equipment.armorId) {
+        inventorySystem.assignToKnight(equipment.armorId, undefined);
+      }
+
+      equipment.armorId = instanceId;
+      changed = true;
+    } else if (slot === "trinket") {
+      if (equipment.trinketIds.includes(instanceId)) {
+        return true;
+      }
+
+      if (equipment.trinketIds.length >= MAX_TRINKETS) {
+        return false;
+      }
+
+      equipment.trinketIds = [...equipment.trinketIds, instanceId];
+      changed = true;
+    }
+
+    if (!changed) {
+      return false;
+    }
+
+    inventorySystem.assignToKnight(instanceId, knightId);
+    rosterCopy[knightIndex] = { ...knight, equipment };
+    this.state = { ...this.state, roster: rosterCopy };
+    this.emitSnapshot();
+    return true;
+  }
+
+  /**
+   * Removes an equipped item from the specified slot.
+   */
+  public unequipItem(knightId: string, slot: EquipmentSlot, instanceId?: string): boolean {
+    const knightIndex = this.state.roster.findIndex((entry) => entry.id === knightId);
+    if (knightIndex === -1) {
+      return false;
+    }
+
+    const rosterCopy = [...this.state.roster];
+    const knight = rosterCopy[knightIndex]!;
+    const equipment = this.normaliseEquipment(knight.equipment);
+    let removedId: string | undefined;
+
+    if (slot === "weapon") {
+      if (!equipment.weaponId || (instanceId && equipment.weaponId !== instanceId)) {
+        return false;
+      }
+      removedId = equipment.weaponId;
+      equipment.weaponId = undefined;
+    } else if (slot === "armor") {
+      if (!equipment.armorId || (instanceId && equipment.armorId !== instanceId)) {
+        return false;
+      }
+      removedId = equipment.armorId;
+      equipment.armorId = undefined;
+    } else if (slot === "trinket") {
+      const index = equipment.trinketIds.findIndex((id) => (instanceId ? id === instanceId : true));
+      if (index === -1) {
+        return false;
+      }
+      removedId = equipment.trinketIds[index];
+      equipment.trinketIds = equipment.trinketIds.filter((id, idx) => idx !== index);
+    }
+
+    if (!removedId) {
+      return false;
+    }
+
+    inventorySystem.assignToKnight(removedId, undefined);
+    rosterCopy[knightIndex] = { ...knight, equipment };
+    this.state = { ...this.state, roster: rosterCopy };
+    this.emitSnapshot();
+    return true;
   }
 
   private ensureCandidateCapacity(): void {
@@ -248,7 +442,12 @@ class KnightManager {
       attributes,
       trait,
       fatigue,
-      injury
+      injury,
+      equipment: {
+        weaponId: undefined,
+        armorId: undefined,
+        trinketIds: []
+      }
     };
   }
 
@@ -302,8 +501,61 @@ class KnightManager {
   private cloneKnight(knight: KnightRecord): KnightRecord {
     return {
       ...knight,
-      attributes: { ...knight.attributes }
+      attributes: { ...knight.attributes },
+      equipment: {
+        weaponId: knight.equipment.weaponId,
+        armorId: knight.equipment.armorId,
+        trinketIds: [...knight.equipment.trinketIds]
+      }
     };
+  }
+
+  private ensureEquipment(knight: KnightRecord): KnightRecord {
+    const equipment = this.normaliseEquipment(knight.equipment);
+    return { ...knight, equipment };
+  }
+
+  private normaliseEquipment(equipment?: KnightEquipmentSlots): KnightEquipmentSlots {
+    if (!equipment) {
+      return { weaponId: undefined, armorId: undefined, trinketIds: [] };
+    }
+
+    const trinketIds = Array.isArray(equipment.trinketIds)
+      ? equipment.trinketIds.filter((id): id is string => typeof id === "string").slice(0, MAX_TRINKETS)
+      : [];
+
+    return {
+      weaponId: typeof equipment.weaponId === "string" ? equipment.weaponId : undefined,
+      armorId: typeof equipment.armorId === "string" ? equipment.armorId : undefined,
+      trinketIds
+    };
+  }
+
+  private resolveEquippedItems(equipment: KnightEquipmentSlots): InventoryItem[] {
+    const items: InventoryItem[] = [];
+
+    if (equipment.weaponId) {
+      const weapon = inventorySystem.getItemByInstanceId(equipment.weaponId);
+      if (weapon) {
+        items.push(weapon);
+      }
+    }
+
+    if (equipment.armorId) {
+      const armor = inventorySystem.getItemByInstanceId(equipment.armorId);
+      if (armor) {
+        items.push(armor);
+      }
+    }
+
+    equipment.trinketIds.forEach((trinketId) => {
+      const trinket = inventorySystem.getItemByInstanceId(trinketId);
+      if (trinket) {
+        items.push(trinket);
+      }
+    });
+
+    return items;
   }
 
   private emitSnapshot(): void {
@@ -314,7 +566,3 @@ class KnightManager {
 const knightManager = new KnightManager();
 
 export default knightManager;
-
-
-
-

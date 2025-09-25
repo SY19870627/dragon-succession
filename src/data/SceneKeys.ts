@@ -7,6 +7,7 @@ export const SceneKeys = {
   MainMenu: "MainMenuScene",
   Castle: "CastleScene",
   Map: "MapScene",
+  Battle: "BattleScene",
   UI: "UIScene"
 } as const;
 
