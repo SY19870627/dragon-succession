@@ -11,6 +11,8 @@ import KnightListPanel from "./ui/KnightListPanel";
 import CraftingPanel from "./ui/CraftingPanel";
 import DebugPanel from "./ui/DebugPanel";
 import type { EventInstance, EventResolution } from "../types/events";
+import UIStateManager from "../systems/UIStateManager";
+import { UIContextId, UIGroupId } from "../types/ui";
 
 const PANEL_BACKGROUND_COLOR = 0x101c3a;
 const PANEL_STROKE_COLOR = 0xffffff;
@@ -21,6 +23,7 @@ const BUTTON_IDLE_COLOR = 0x1f2f4a;
 const BUTTON_HOVER_COLOR = 0x29415f;
 const BUTTON_ACTIVE_COLOR = 0xf1c40f;
 const BUTTON_ACTIVE_TEXT_COLOR = "#0b0c10";
+const BUTTON_DISABLED_COLOR = 0x132033;
 
 const RESOURCE_ORDER: readonly ResourceType[] = ["gold", "food", "fame", "morale"];
 
@@ -78,6 +81,7 @@ const EVENT_CLOSE_BUTTON_BOTTOM_MARGIN = 28;
 export default class UIScene extends Phaser.Scene {
   public static readonly KEY = SceneKeys.UI;
 
+  private uiState!: UIStateManager;
   private resourceText!: Phaser.GameObjects.Text;
   private economyCurrentText!: Phaser.GameObjects.Text;
   private economyNextText!: Phaser.GameObjects.Text;
@@ -124,6 +128,8 @@ export default class UIScene extends Phaser.Scene {
    * Builds the overlay UI and subscribes to shared game events.
    */
   public override create(): void {
+    this.uiState = new UIStateManager();
+
     this.buildResourceBar();
     this.buildTimeController();
     this.buildKnightPanel();
@@ -133,6 +139,9 @@ export default class UIScene extends Phaser.Scene {
     this.buildDebugPanel();
     this.buildDebugToggle();
     this.buildEventModal();
+    this.registerUIStateGroups();
+    this.registerUIStateContexts();
+    this.uiState.pushContext(UIContextId.Root);
     this.registerEventListeners();
 
     this.updateKnightToggleAppearance();
@@ -554,6 +563,149 @@ export default class UIScene extends Phaser.Scene {
     this.eventCloseButton = closeContainer;
   }
 
+  private registerUIStateGroups(): void {
+    this.uiState.registerGroup(
+      UIGroupId.TimeControls,
+      this.timeButtons.map((entry) => ({
+        enable: () => {
+          entry.background.setInteractive({ useHandCursor: true });
+          entry.background.setAlpha(1);
+          entry.label.setAlpha(1);
+          this.highlightTimeButtons(timeSystem.getTimeScale());
+        },
+        disable: () => {
+          entry.background.disableInteractive();
+          entry.background.setAlpha(0.6);
+          entry.label.setAlpha(0.7);
+          this.highlightTimeButtons(timeSystem.getTimeScale());
+        }
+      }))
+    );
+
+    this.uiState.registerGroup(UIGroupId.KnightToggle, [
+      {
+        enable: () => {
+          if (!this.knightToggle) {
+            return;
+          }
+          this.knightToggle.background.setInteractive({ useHandCursor: true });
+          this.knightToggle.container.setAlpha(1);
+          this.knightToggle.label.setAlpha(1);
+          this.updateKnightToggleAppearance();
+        },
+        disable: () => {
+          if (!this.knightToggle) {
+            return;
+          }
+          this.knightToggle.background.disableInteractive();
+          this.knightToggle.container.setAlpha(0.65);
+          this.knightToggle.label.setAlpha(0.75);
+          this.updateKnightToggleAppearance();
+        }
+      }
+    ]);
+
+    this.uiState.registerGroup(UIGroupId.CraftingToggle, [
+      {
+        enable: () => {
+          if (!this.craftingToggle) {
+            return;
+          }
+          this.craftingToggle.background.setInteractive({ useHandCursor: true });
+          this.craftingToggle.container.setAlpha(1);
+          this.craftingToggle.label.setAlpha(1);
+          this.updateCraftingToggleAppearance();
+        },
+        disable: () => {
+          if (!this.craftingToggle) {
+            return;
+          }
+          this.craftingToggle.background.disableInteractive();
+          this.craftingToggle.container.setAlpha(0.65);
+          this.craftingToggle.label.setAlpha(0.75);
+          this.updateCraftingToggleAppearance();
+        }
+      }
+    ]);
+
+    this.uiState.registerGroup(UIGroupId.DebugToggle, [
+      {
+        enable: () => {
+          if (!this.debugToggle) {
+            return;
+          }
+          this.debugToggle.background.setInteractive({ useHandCursor: true });
+          this.debugToggle.container.setAlpha(1);
+          this.debugToggle.label.setAlpha(1);
+          this.updateDebugToggleAppearance();
+        },
+        disable: () => {
+          if (!this.debugToggle) {
+            return;
+          }
+          this.debugToggle.background.disableInteractive();
+          this.debugToggle.container.setAlpha(0.65);
+          this.debugToggle.label.setAlpha(0.75);
+          this.updateDebugToggleAppearance();
+        }
+      }
+    ]);
+
+    this.uiState.registerGroup(UIGroupId.KnightPanel);
+    this.uiState.registerGroup(UIGroupId.CraftingPanel);
+    this.uiState.registerGroup(UIGroupId.DebugPanel);
+
+    this.uiState.registerGroup(UIGroupId.EventModal, [
+      {
+        enable: () => {
+          if (this.eventOverlay) {
+            this.eventOverlay.setVisible(true);
+            this.eventOverlay.setInteractive({ useHandCursor: false });
+          }
+        },
+        disable: () => {
+          if (this.eventOverlay) {
+            this.eventOverlay.disableInteractive();
+            this.eventOverlay.setVisible(false);
+          }
+          this.setEventChoicesEnabled(false);
+        }
+      }
+    ]);
+  }
+
+  private registerUIStateContexts(): void {
+    this.uiState.registerContext({
+      id: UIContextId.Root,
+      allowedGroups: [
+        UIGroupId.TimeControls,
+        UIGroupId.KnightToggle,
+        UIGroupId.CraftingToggle,
+        UIGroupId.DebugToggle
+      ]
+    });
+
+    this.uiState.registerContext({
+      id: UIContextId.KnightManagement,
+      allowedGroups: [UIGroupId.KnightToggle, UIGroupId.KnightPanel]
+    });
+
+    this.uiState.registerContext({
+      id: UIContextId.CraftingManagement,
+      allowedGroups: [UIGroupId.CraftingToggle, UIGroupId.CraftingPanel]
+    });
+
+    this.uiState.registerContext({
+      id: UIContextId.DebugTools,
+      allowedGroups: [UIGroupId.DebugToggle, UIGroupId.DebugPanel]
+    });
+
+    this.uiState.registerContext({
+      id: UIContextId.EventModal,
+      allowedGroups: [UIGroupId.EventModal]
+    });
+  }
+
   /**
    * Subscribes to resource and time events emitted through the shared event bus.
    */
@@ -724,6 +876,7 @@ export default class UIScene extends Phaser.Scene {
    * Handles presentation of a newly drawn event instance.
    */
   private handleNarrativeEventPresented(instance: EventInstance): void {
+    this.uiState.pushContext(UIContextId.EventModal);
     this.displayEventInstance(instance);
   }
 
@@ -760,11 +913,6 @@ export default class UIScene extends Phaser.Scene {
 
     if (!this.eventModal || !this.eventTitleText || !this.eventPromptText) {
       return;
-    }
-
-    if (this.eventOverlay) {
-      this.eventOverlay.setVisible(true);
-      this.eventOverlay.setInteractive({ useHandCursor: false });
     }
 
     this.eventModal.setVisible(true);
@@ -959,9 +1107,13 @@ export default class UIScene extends Phaser.Scene {
         background.setInteractive({ useHandCursor: true });
         background.setFillStyle(BUTTON_IDLE_COLOR, 1);
         label.setColor(TEXT_PRIMARY_COLOR);
+        label.setAlpha(1);
         container.setVisible(true);
       } else {
         background.disableInteractive();
+        background.setFillStyle(BUTTON_DISABLED_COLOR, 0.7);
+        label.setColor(TEXT_MUTED_COLOR);
+        label.setAlpha(0.75);
       }
 
       container.setData("enabled", enabled);
@@ -1011,6 +1163,7 @@ export default class UIScene extends Phaser.Scene {
    * Hides the modal and clears the active event reference.
    */
   private hideEventModal(): void {
+    this.uiState.popContext(UIContextId.EventModal);
     this.activeEvent = null;
     this.selectedEventChoiceId = null;
     this.clearEventChoices();
@@ -1039,17 +1192,18 @@ export default class UIScene extends Phaser.Scene {
    * Applies visual highlighting to the active time control button.
    */
   private highlightTimeButtons(activeScale: number): void {
+    const controlsEnabled = this.uiState?.isGroupEnabled(UIGroupId.TimeControls) ?? true;
+
     this.timeButtons.forEach((entry) => {
       const isActive = Math.abs(entry.scale - activeScale) < Number.EPSILON;
-      if (isActive) {
-        entry.background.setFillStyle(BUTTON_ACTIVE_COLOR, 1);
-        entry.background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.6);
-        entry.label.setColor(BUTTON_ACTIVE_TEXT_COLOR);
-      } else {
-        entry.background.setFillStyle(BUTTON_IDLE_COLOR, 1);
-        entry.background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.25);
-        entry.label.setColor(TEXT_MUTED_COLOR);
-      }
+      const fillColor = isActive ? BUTTON_ACTIVE_COLOR : BUTTON_IDLE_COLOR;
+      const fillAlpha = controlsEnabled ? 1 : isActive ? 0.6 : 0.45;
+      const strokeAlpha = controlsEnabled ? (isActive ? 0.6 : 0.25) : 0.2;
+
+      entry.background.setFillStyle(fillColor, fillAlpha);
+      entry.background.setStrokeStyle(1, PANEL_STROKE_COLOR, strokeAlpha);
+      entry.label.setColor(isActive ? BUTTON_ACTIVE_TEXT_COLOR : TEXT_MUTED_COLOR);
+      entry.label.setAlpha(controlsEnabled ? 1 : 0.7);
     });
   }
 
@@ -1069,6 +1223,11 @@ export default class UIScene extends Phaser.Scene {
       return;
     }
 
+    if (visible) {
+      this.setCraftingPanelVisibility(false);
+      this.setDebugPanelVisibility(false);
+    }
+
     this.knightPanelVisible = visible;
     this.knightPanel.setVisible(visible);
     this.knightPanel.setActive(visible);
@@ -1077,6 +1236,9 @@ export default class UIScene extends Phaser.Scene {
       this.knightPanel.refreshFromManager();
       this.knightPanel.setDepth(950);
       this.children.bringToTop(this.knightPanel);
+      this.uiState.pushContext(UIContextId.KnightManagement);
+    } else {
+      this.uiState.popContext(UIContextId.KnightManagement);
     }
 
     if (this.knightToggle) {
@@ -1091,14 +1253,31 @@ export default class UIScene extends Phaser.Scene {
       return;
     }
 
+    const toggleEnabled = this.uiState?.isGroupEnabled(UIGroupId.KnightToggle) ?? true;
+    const { background, label, container } = this.knightToggle;
+
+    if (!toggleEnabled) {
+      const fillColor = this.knightPanelVisible ? BUTTON_ACTIVE_COLOR : BUTTON_IDLE_COLOR;
+      const fillAlpha = this.knightPanelVisible ? 0.7 : 0.55;
+      background.setFillStyle(fillColor, fillAlpha);
+      background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.2);
+      label.setColor(this.knightPanelVisible ? BUTTON_ACTIVE_TEXT_COLOR : TEXT_MUTED_COLOR);
+      label.setAlpha(0.75);
+      container.setAlpha(0.65);
+      return;
+    }
+
+    container.setAlpha(1);
+    label.setAlpha(1);
+
     if (this.knightPanelVisible) {
-      this.knightToggle.background.setFillStyle(BUTTON_ACTIVE_COLOR, 1);
-      this.knightToggle.background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.6);
-      this.knightToggle.label.setColor(BUTTON_ACTIVE_TEXT_COLOR);
+      background.setFillStyle(BUTTON_ACTIVE_COLOR, 1);
+      background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.6);
+      label.setColor(BUTTON_ACTIVE_TEXT_COLOR);
     } else {
-      this.knightToggle.background.setFillStyle(BUTTON_IDLE_COLOR, 1);
-      this.knightToggle.background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
-      this.knightToggle.label.setColor(TEXT_MUTED_COLOR);
+      background.setFillStyle(BUTTON_IDLE_COLOR, 1);
+      background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
+      label.setColor(TEXT_MUTED_COLOR);
     }
   }
 
@@ -1111,6 +1290,11 @@ export default class UIScene extends Phaser.Scene {
       return;
     }
 
+    if (visible) {
+      this.setKnightPanelVisibility(false);
+      this.setDebugPanelVisibility(false);
+    }
+
     this.craftingPanelVisible = visible;
     this.craftingPanel.setVisible(visible);
     this.craftingPanel.setActive(visible);
@@ -1118,6 +1302,9 @@ export default class UIScene extends Phaser.Scene {
     if (visible) {
       this.craftingPanel.setDepth(940);
       this.children.bringToTop(this.craftingPanel);
+      this.uiState.pushContext(UIContextId.CraftingManagement);
+    } else {
+      this.uiState.popContext(UIContextId.CraftingManagement);
     }
 
     if (this.craftingToggle) {
@@ -1132,14 +1319,31 @@ export default class UIScene extends Phaser.Scene {
       return;
     }
 
+    const toggleEnabled = this.uiState?.isGroupEnabled(UIGroupId.CraftingToggle) ?? true;
+    const { background, label, container } = this.craftingToggle;
+
+    if (!toggleEnabled) {
+      const fillColor = this.craftingPanelVisible ? BUTTON_ACTIVE_COLOR : BUTTON_IDLE_COLOR;
+      const fillAlpha = this.craftingPanelVisible ? 0.7 : 0.55;
+      background.setFillStyle(fillColor, fillAlpha);
+      background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.2);
+      label.setColor(this.craftingPanelVisible ? BUTTON_ACTIVE_TEXT_COLOR : TEXT_MUTED_COLOR);
+      label.setAlpha(0.75);
+      container.setAlpha(0.65);
+      return;
+    }
+
+    container.setAlpha(1);
+    label.setAlpha(1);
+
     if (this.craftingPanelVisible) {
-      this.craftingToggle.background.setFillStyle(BUTTON_ACTIVE_COLOR, 1);
-      this.craftingToggle.background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.6);
-      this.craftingToggle.label.setColor(BUTTON_ACTIVE_TEXT_COLOR);
+      background.setFillStyle(BUTTON_ACTIVE_COLOR, 1);
+      background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.6);
+      label.setColor(BUTTON_ACTIVE_TEXT_COLOR);
     } else {
-      this.craftingToggle.background.setFillStyle(BUTTON_IDLE_COLOR, 1);
-      this.craftingToggle.background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
-      this.craftingToggle.label.setColor(TEXT_MUTED_COLOR);
+      background.setFillStyle(BUTTON_IDLE_COLOR, 1);
+      background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
+      label.setColor(TEXT_MUTED_COLOR);
     }
   }
 
@@ -1152,6 +1356,11 @@ export default class UIScene extends Phaser.Scene {
       return;
     }
 
+    if (visible) {
+      this.setKnightPanelVisibility(false);
+      this.setCraftingPanelVisibility(false);
+    }
+
     this.debugPanelVisible = visible;
     this.debugPanel.setVisible(visible);
     this.debugPanel.setActive(visible);
@@ -1159,6 +1368,9 @@ export default class UIScene extends Phaser.Scene {
     if (visible) {
       this.debugPanel.setDepth(870);
       this.children.bringToTop(this.debugPanel);
+      this.uiState.pushContext(UIContextId.DebugTools);
+    } else {
+      this.uiState.popContext(UIContextId.DebugTools);
     }
 
     if (this.debugToggle) {
@@ -1173,14 +1385,31 @@ export default class UIScene extends Phaser.Scene {
       return;
     }
 
+    const toggleEnabled = this.uiState?.isGroupEnabled(UIGroupId.DebugToggle) ?? true;
+    const { background, label, container } = this.debugToggle;
+
+    if (!toggleEnabled) {
+      const fillColor = this.debugPanelVisible ? BUTTON_ACTIVE_COLOR : BUTTON_IDLE_COLOR;
+      const fillAlpha = this.debugPanelVisible ? 0.7 : 0.55;
+      background.setFillStyle(fillColor, fillAlpha);
+      background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.2);
+      label.setColor(this.debugPanelVisible ? BUTTON_ACTIVE_TEXT_COLOR : TEXT_MUTED_COLOR);
+      label.setAlpha(0.75);
+      container.setAlpha(0.65);
+      return;
+    }
+
+    container.setAlpha(1);
+    label.setAlpha(1);
+
     if (this.debugPanelVisible) {
-      this.debugToggle.background.setFillStyle(BUTTON_ACTIVE_COLOR, 1);
-      this.debugToggle.background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.6);
-      this.debugToggle.label.setColor(BUTTON_ACTIVE_TEXT_COLOR);
+      background.setFillStyle(BUTTON_ACTIVE_COLOR, 1);
+      background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.6);
+      label.setColor(BUTTON_ACTIVE_TEXT_COLOR);
     } else {
-      this.debugToggle.background.setFillStyle(BUTTON_IDLE_COLOR, 1);
-      this.debugToggle.background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
-      this.debugToggle.label.setColor(TEXT_MUTED_COLOR);
+      background.setFillStyle(BUTTON_IDLE_COLOR, 1);
+      background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
+      label.setColor(TEXT_MUTED_COLOR);
     }
   }
 }
