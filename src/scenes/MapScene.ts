@@ -12,6 +12,22 @@ import type { QuestRecord } from "../types/quests";
 import type { KnightRecord } from "../types/state";
 import type { BossBattleReport } from "../types/boss";
 
+const BIOME_LABEL_MAP: Record<string, string> = {
+  Highlands: "高地",
+  Marsh: "沼澤",
+  Forest: "森林",
+  Coast: "海岸",
+  Ruins: "遺跡",
+  Volcanic: "火山地帶"
+};
+
+const THREAT_LABEL_MAP: Record<string, string> = {
+  Low: "低",
+  Moderate: "中等",
+  Severe: "嚴重",
+  Catastrophic: "災難級"
+};
+
 interface MapSceneData {
   /** Optional scene key that should resume when the map closes. */
   readonly returnScene?: string;
@@ -141,7 +157,7 @@ export default class MapScene extends Phaser.Scene {
         lock.setOrigin(0.5);
       }
 
-      const labelText = this.isDragonLair(node) && !unlocked ? `${node.label} (Locked)` : node.label;
+      const labelText = this.isDragonLair(node) && !unlocked ? `${node.label}（未解鎖）` : node.label;
       const label = this.add.text(x, y + circleRadius + 6, labelText, {
         fontFamily: "Segoe UI, sans-serif",
         fontSize: "18px",
@@ -199,7 +215,7 @@ export default class MapScene extends Phaser.Scene {
     button.on("pointerout", () => button.setFillStyle(0x0f172a, 1));
     button.on("pointerup", () => this.returnToCastle());
 
-    const label = this.add.text(button.x + buttonWidth / 2, button.y + buttonHeight / 2, "Return", {
+    const label = this.add.text(button.x + buttonWidth / 2, button.y + buttonHeight / 2, "返回", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "18px",
       color: "#e2e8f0"
@@ -214,8 +230,8 @@ export default class MapScene extends Phaser.Scene {
     }
 
     const state = expeditionSystem.getDragonIntelState();
-    const status = state.lairUnlocked ? "Lair Unlocked" : "Locked";
-    this.intelStatusText.setText(`Dragon Intel ${state.current}/${state.threshold} · ${status}`);
+    const status = state.lairUnlocked ? "巢穴已解鎖" : "未解鎖";
+    this.intelStatusText.setText(`龍族情報 ${state.current}/${state.threshold} • ${status}`);
     this.intelStatusText.setColor(state.lairUnlocked ? "#facc15" : "#94a3b8");
   }
 
@@ -243,13 +259,15 @@ export default class MapScene extends Phaser.Scene {
     });
     title.setOrigin(0.5, 0.5);
 
-    const biomeText = this.add.text(-width / 2 + 24, -24, `Biome: ${node.biome}`, {
+    const biomeLabel = BIOME_LABEL_MAP[node.biome] ?? node.biome;
+    const biomeText = this.add.text(-width / 2 + 24, -24, `地形：${biomeLabel}`, {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "16px",
       color: "#bfdbfe"
     });
 
-    const threatText = this.add.text(-width / 2 + 24, 8, `Suggested Threat: ${node.defaultThreat}`, {
+    const threatLabel = THREAT_LABEL_MAP[node.defaultThreat] ?? node.defaultThreat;
+    const threatText = this.add.text(-width / 2 + 24, 8, `建議威脅：${threatLabel}`, {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "16px",
       color: "#fbbf24"
@@ -262,7 +280,7 @@ export default class MapScene extends Phaser.Scene {
       wordWrap: { width: width - 48 }
     });
 
-    const createButton = this.buildPrimaryButton(0, height / 2 - 60, width - 60, 48, "Create Quest Draft", () => {
+    const createButton = this.buildPrimaryButton(0, height / 2 - 60, width - 60, 48, "建立任務草案", () => {
       const quest = questManager.createQuest(node.id, node.defaultThreat, node.biome);
       this.displayQuestCreationResult(quest);
       this.updateQuestSummary();
@@ -307,9 +325,9 @@ export default class MapScene extends Phaser.Scene {
 
     const intelState = expeditionSystem.getDragonIntelState();
     const unlocked = this.isNodeUnlocked(node, intelState);
-    const statusLine = unlocked ? "Assault plans ready." : "Insufficient dragon intel.";
+    const statusLine = unlocked ? "攻擊計畫已就緒。" : "龍族情報不足。";
 
-    const intelText = this.add.text(-width / 2 + 24, -24, `Intel ${intelState.current}/${intelState.threshold}`, {
+    const intelText = this.add.text(-width / 2 + 24, -24, `情報 ${intelState.current}/${intelState.threshold}`, {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "18px",
       color: unlocked ? "#fde68a" : "#fca5a5"
@@ -330,14 +348,14 @@ export default class MapScene extends Phaser.Scene {
 
     let actionButton: Phaser.GameObjects.Container | null = null;
     if (unlocked) {
-      actionButton = this.buildPrimaryButton(0, height / 2 - 60, width - 60, 48, "Launch Final Assault", () => {
+      actionButton = this.buildPrimaryButton(0, height / 2 - 60, width - 60, 48, "發動最終攻勢", () => {
         this.launchDragonLairAssault(node);
       });
     } else {
       const disabled = this.add.rectangle(0, height / 2 - 60, width - 60, 48, 0x1f2937, 0.9);
       disabled.setOrigin(0.5);
       disabled.setStrokeStyle(2, 0x4b5563, 0.8);
-      const label = this.add.text(disabled.x, disabled.y, "Gather More Intel", {
+      const label = this.add.text(disabled.x, disabled.y, "收集更多情報", {
         fontFamily: "Segoe UI, sans-serif",
         fontSize: "18px",
         color: "#94a3b8"
@@ -405,7 +423,7 @@ export default class MapScene extends Phaser.Scene {
       return;
     }
 
-    const feedback = this.add.text(0, 60, `Quest ${quest.id} created`, {
+    const feedback = this.add.text(0, 60, `已建立任務 ${quest.id}`, {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "16px",
       color: "#4ade80"
@@ -427,7 +445,7 @@ export default class MapScene extends Phaser.Scene {
     const roster = knightManager.getRoster();
     const strikeTeam = this.selectStrikeTeam(roster);
     if (strikeTeam.length === 0) {
-      const warning = this.add.text(0, 120, "No healthy knights available for the assault.", {
+      const warning = this.add.text(0, 120, "沒有健康的騎士可參與攻勢。", {
         fontFamily: "Segoe UI, sans-serif",
         fontSize: "16px",
         color: "#f87171",
@@ -475,7 +493,7 @@ export default class MapScene extends Phaser.Scene {
     background.setOrigin(0.5);
     background.setStrokeStyle(2, report.outcome === "victory" ? 0x22c55e : 0xef4444, 0.9);
 
-    const title = this.add.text(0, -height / 2 + 32, `${lairLabel} Battle Report`, {
+    const title = this.add.text(0, -height / 2 + 32, `${lairLabel} 戰報`, {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "24px",
       fontStyle: "bold",
@@ -483,7 +501,7 @@ export default class MapScene extends Phaser.Scene {
     });
     title.setOrigin(0.5, 0.5);
 
-    const outcomeText = this.add.text(0, title.y + 40, report.outcome === "victory" ? "Victory" : "Defeat", {
+    const outcomeText = this.add.text(0, title.y + 40, report.outcome === "victory" ? "勝利" : "敗北", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "20px",
       color: report.outcome === "victory" ? "#bbf7d0" : "#fca5a5"
@@ -491,30 +509,30 @@ export default class MapScene extends Phaser.Scene {
     outcomeText.setOrigin(0.5, 0.5);
 
     const summaryLines: string[] = [];
-    summaryLines.push(`Total Damage Dealt: ${Math.round(report.totalDamageDealt)}`);
-    summaryLines.push(`Total Damage Taken: ${Math.round(report.totalDamageTaken)}`);
-    summaryLines.push(`Survivors: ${report.survivingKnights.length}`);
+    summaryLines.push(`總造成傷害：${Math.round(report.totalDamageDealt)}`);
+    summaryLines.push(`總承受傷害：${Math.round(report.totalDamageTaken)}`);
+    summaryLines.push(`生還：${report.survivingKnights.length}`);
     if (report.defeatedKnights.length > 0) {
-      summaryLines.push(`Fallen: ${report.defeatedKnights.join(", ")}`);
+      summaryLines.push(`陣亡：${report.defeatedKnights.join("、")}`);
     }
 
-    summaryLines.push("Phases:");
+    summaryLines.push("戰鬥階段：");
     report.phases.forEach((phase) => {
       summaryLines.push(
-        ` - ${phase.phase} (${phase.rounds} rounds, damage dealt ${Math.round(phase.damageDealt)}, hazard hits ${phase.hazardEvents.length})`
+        ` - ${phase.phase}（${phase.rounds} 回合，造成傷害 ${Math.round(phase.damageDealt)}，環境打擊 ${phase.hazardEvents.length} 次）`
       );
     });
 
     const hazardEvents = report.phases.flatMap((phase) => phase.hazardEvents);
     if (hazardEvents.length > 0) {
-      summaryLines.push("Hazards:");
+      summaryLines.push("環境危害：");
       hazardEvents.slice(0, 3).forEach((event) => {
         summaryLines.push(
-          ` - Round ${event.round} ${event.type} dealt ${Math.round(event.totalDamage)} to ${event.affected.length} knights`
+          ` - 第 ${event.round} 回合 ${event.type} 造成 ${Math.round(event.totalDamage)} 傷害，影響 ${event.affected.length} 名騎士`
         );
       });
       if (hazardEvents.length > 3) {
-        summaryLines.push(` - ${hazardEvents.length - 3} additional hazard events`);
+        summaryLines.push(` - 另有 ${hazardEvents.length - 3} 次額外環境事件`);
       }
     }
 
@@ -526,7 +544,7 @@ export default class MapScene extends Phaser.Scene {
     });
     summaryText.setOrigin(0, 0);
 
-    const concludeButton = this.buildPrimaryButton(0, height / 2 - 50, width - 80, 50, "Conclude Succession", () => {
+    const concludeButton = this.buildPrimaryButton(0, height / 2 - 50, width - 80, 50, "結束傳承", () => {
       this.finalizeBossBattle(report);
     });
 
@@ -575,7 +593,7 @@ export default class MapScene extends Phaser.Scene {
   }
 
   private formatQuestSummary(available: number, inProgress: number): string {
-    return `Available Quests: ${available}    In Progress: ${inProgress}`;
+    return `可用任務：${available}    進行中：${inProgress}`;
   }
 
   private returnToCastle(): void {

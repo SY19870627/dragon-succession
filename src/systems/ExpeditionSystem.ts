@@ -35,40 +35,40 @@ const THREAT_ENEMY_COUNTS: Record<string, { min: number; max: number }> = {
 
 const BIOME_LOOT_TABLE: Record<string, ReadonlyArray<LootEntry>> = {
   Highlands: [
-    { name: "Wyvern Scale", weight: 4, quantity: { min: 1, max: 3 } },
-    { name: "Refined Ore", weight: 6, quantity: { min: 2, max: 5 } },
-    { name: "Sky Flower", weight: 3, quantity: { min: 1, max: 2 } }
+    { name: "飛龍鱗片", weight: 4, quantity: { min: 1, max: 3 } },
+    { name: "精鍊礦石", weight: 6, quantity: { min: 2, max: 5 } },
+    { name: "天際之花", weight: 3, quantity: { min: 1, max: 2 } }
   ],
   Marsh: [
-    { name: "Glowcap Mushroom", weight: 5, quantity: { min: 2, max: 4 } },
-    { name: "Toxic Spore Vial", weight: 3, quantity: { min: 1, max: 2 } },
-    { name: "Bog Iron", weight: 4, quantity: { min: 1, max: 3 } }
+    { name: "光帽菇", weight: 5, quantity: { min: 2, max: 4 } },
+    { name: "劇毒孢子瓶", weight: 3, quantity: { min: 1, max: 2 } },
+    { name: "泥沼鐵", weight: 4, quantity: { min: 1, max: 3 } }
   ],
   Forest: [
-    { name: "Ancient Sap", weight: 4, quantity: { min: 1, max: 3 } },
-    { name: "Living Bark", weight: 5, quantity: { min: 2, max: 4 } },
-    { name: "Sylvan Gem", weight: 3, quantity: { min: 1, max: 2 } }
+    { name: "遠古樹汁", weight: 4, quantity: { min: 1, max: 3 } },
+    { name: "活化樹皮", weight: 5, quantity: { min: 2, max: 4 } },
+    { name: "森靈寶石", weight: 3, quantity: { min: 1, max: 2 } }
   ],
   Coast: [
-    { name: "Corsair Doubloon", weight: 5, quantity: { min: 3, max: 6 } },
-    { name: "Tideglass", weight: 4, quantity: { min: 1, max: 3 } },
-    { name: "Storm Pearl", weight: 2, quantity: { min: 1, max: 1 } }
+    { name: "海盜金幣", weight: 5, quantity: { min: 3, max: 6 } },
+    { name: "潮汐琉璃", weight: 4, quantity: { min: 1, max: 3 } },
+    { name: "風暴珍珠", weight: 2, quantity: { min: 1, max: 1 } }
   ],
   Ruins: [
-    { name: "Relic Fragment", weight: 5, quantity: { min: 2, max: 4 } },
-    { name: "Ancient Script", weight: 3, quantity: { min: 1, max: 2 } },
-    { name: "Arcane Dust", weight: 4, quantity: { min: 2, max: 5 } }
+    { name: "遺物碎片", weight: 5, quantity: { min: 2, max: 4 } },
+    { name: "古代文卷", weight: 3, quantity: { min: 1, max: 2 } },
+    { name: "祕法之塵", weight: 4, quantity: { min: 2, max: 5 } }
   ],
   Volcanic: [
-    { name: "Cinder Shard", weight: 5, quantity: { min: 2, max: 5 } },
-    { name: "Molten Core", weight: 3, quantity: { min: 1, max: 2 } },
-    { name: "Ashen Relic", weight: 4, quantity: { min: 1, max: 2 } }
+    { name: "餘燼碎片", weight: 5, quantity: { min: 2, max: 5 } },
+    { name: "熔核", weight: 3, quantity: { min: 1, max: 2 } },
+    { name: "灰燼遺珍", weight: 4, quantity: { min: 1, max: 2 } }
   ]
 };
 
 const DEFAULT_LOOT_TABLE: ReadonlyArray<LootEntry> = [
-  { name: "Supply Crate", weight: 6, quantity: { min: 2, max: 4 } },
-  { name: "Battlefield Salvage", weight: 5, quantity: { min: 1, max: 3 } }
+  { name: "補給箱", weight: 6, quantity: { min: 2, max: 4 } },
+  { name: "戰場殘材", weight: 5, quantity: { min: 1, max: 3 } }
 ];
 
 /**
@@ -177,13 +177,13 @@ class ExpeditionSystem {
 
     const encounterId = `${node.id}-${seed.toString(36)}-${powerRating}`;
     const nameOptions = [
-      `${node.label} Vanguard`,
-      `${node.label} Raiders`,
-      `${node.label} Warband`,
-      `${node.label} Front`,
-      `${node.label} Host`
+      `${node.label} 先鋒`,
+      `${node.label} 劫掠者`,
+      `${node.label} 戰團`,
+      `${node.label} 前線`,
+      `${node.label} 主力`
     ];
-    const name = nameOptions[Math.floor(rng.next() * nameOptions.length)] ?? `${node.label} Threat`;
+    const name = nameOptions[Math.floor(rng.next() * nameOptions.length)] ?? `${node.label} 威脅`;
 
     const intelRangeTemplate = isElite && isRuins
       ? DRAGON_INTEL_SOURCES.eliteRuins

@@ -56,7 +56,7 @@ export default class KnightListPanel extends Phaser.GameObjects.Container {
     this.candidateSelectionId = null;
 
     this.recruitButton = this.createButton(
-      "Recruit",
+      "招募",
       PANEL_WIDTH - 16 - BUTTON_WIDTH / 2,
       PANEL_HEIGHT - 48,
       () => {
@@ -70,7 +70,7 @@ export default class KnightListPanel extends Phaser.GameObjects.Container {
     );
 
     this.fireButton = this.createButton(
-      "Fire",
+      "解雇",
       16 + BUTTON_WIDTH / 2,
       PANEL_HEIGHT - 48,
       () => {
@@ -84,7 +84,7 @@ export default class KnightListPanel extends Phaser.GameObjects.Container {
     );
 
     this.refreshButton = this.createButton(
-      "Refresh",
+      "刷新",
       PANEL_WIDTH / 2,
       PANEL_HEIGHT - 48,
       () => {
@@ -131,20 +131,20 @@ export default class KnightListPanel extends Phaser.GameObjects.Container {
     background.setOrigin(0, 0);
     background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.3);
 
-    const title = this.scene.add.text(16, 20, "Court Knights", {
+    const title = this.scene.add.text(16, 20, "宮廷騎士", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "22px",
       fontStyle: "bold",
       color: "#fdfcff"
     });
 
-    const subtitle = this.scene.add.text(16, 36, "Manage sworn defenders of the realm.", {
+    const subtitle = this.scene.add.text(16, 36, "管理效忠王國的騎士。", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "14px",
       color: ROW_PLACEHOLDER_COLOR
     });
 
-    const rosterHeader = this.scene.add.text(16, COLUMN_TOP - 24, "Roster", {
+    const rosterHeader = this.scene.add.text(16, COLUMN_TOP - 24, "名冊", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "16px",
       fontStyle: "bold",
@@ -154,7 +154,7 @@ export default class KnightListPanel extends Phaser.GameObjects.Container {
     const candidateHeader = this.scene.add.text(
       16 + COLUMN_WIDTH + COLUMN_GAP,
       COLUMN_TOP - 24,
-      "Candidates",
+      "候補",
       {
         fontFamily: "Segoe UI, sans-serif",
         fontSize: "16px",
@@ -209,7 +209,7 @@ export default class KnightListPanel extends Phaser.GameObjects.Container {
         this.candidateSelectionId = null;
         this.rerender();
       },
-      "No knights have been recruited."
+      "尚未招募任何騎士。"
     );
 
     this.populateList(
@@ -221,7 +221,7 @@ export default class KnightListPanel extends Phaser.GameObjects.Container {
         this.rosterSelectionId = null;
         this.rerender();
       },
-      "No candidates available. Refresh the list."
+      "目前沒有候補騎士。請刷新列表。"
     );
 
     this.updateButtonStates();

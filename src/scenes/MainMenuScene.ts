@@ -66,6 +66,13 @@ const LEGACY_PANEL_HEIGHT = 360;
 const LEGACY_PANEL_COLOR = 0x0f1d33;
 const LEGACY_HIGHLIGHT_COLOR = "#f9f871";
 
+const RESOURCE_LABEL_MAP: Record<string, string> = {
+  gold: "黃金",
+  food: "糧食",
+  fame: "聲望",
+  morale: "士氣"
+};
+
 /**
  * Main menu where players can start or manage game sessions.
  */
@@ -145,7 +152,7 @@ export default class MainMenuScene extends Phaser.Scene {
     const logo = this.add.image(width / 2, height * 0.3, TextureKeys.Logo);
     logo.setOrigin(0.5);
 
-    const title = this.add.text(width / 2, logo.y, "Dragon Succession", {
+    const title = this.add.text(width / 2, logo.y, "龍族傳承", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "44px",
       fontStyle: "bold",
@@ -153,7 +160,7 @@ export default class MainMenuScene extends Phaser.Scene {
     });
     title.setOrigin(0.5);
 
-    const subtitle = this.add.text(width / 2, logo.y + 80, "Safeguard the royal lineage.", {
+    const subtitle = this.add.text(width / 2, logo.y + 80, "守護王室血脈。", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "20px",
       color: "#c5d8ff"
@@ -169,7 +176,7 @@ export default class MainMenuScene extends Phaser.Scene {
     playButton.setOrigin(0.5);
     playButton.setInteractive({ useHandCursor: true });
 
-    const buttonLabel = this.add.text(playButton.x, playButton.y, "New Game", {
+    const buttonLabel = this.add.text(playButton.x, playButton.y, "開始新遊戲", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "28px",
       fontStyle: "bold",
@@ -200,7 +207,7 @@ export default class MainMenuScene extends Phaser.Scene {
     background.setOrigin(0.5);
     background.setStrokeStyle(2, PANEL_BORDER_COLOR, 0.22);
 
-    const title = this.add.text(0, -PANEL_HEIGHT / 2 + 20, "Saved Realms", {
+    const title = this.add.text(0, -PANEL_HEIGHT / 2 + 20, "已保存的王國", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "24px",
       fontStyle: "bold",
@@ -208,7 +215,7 @@ export default class MainMenuScene extends Phaser.Scene {
     });
     title.setOrigin(0.5, 0);
 
-    const subtitle = this.add.text(0, -PANEL_HEIGHT / 2 + 52, "Load or curate your royal succession.", {
+    const subtitle = this.add.text(0, -PANEL_HEIGHT / 2 + 52, "載入或管理你的王室繼承。", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "16px",
       color: PANEL_SUBTITLE_COLOR
@@ -216,7 +223,7 @@ export default class MainMenuScene extends Phaser.Scene {
     subtitle.setOrigin(0.5, 0);
 
     this.slotListContainer = this.add.container(-PANEL_WIDTH / 2 + 16, -PANEL_HEIGHT / 2 + 92);
-    this.emptySlotsLabel = this.add.text(0, -PANEL_HEIGHT / 2 + 124, "No saved kingdoms yet.", {
+    this.emptySlotsLabel = this.add.text(0, -PANEL_HEIGHT / 2 + 124, "尚未保存任何王國。", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "18px",
       color: PANEL_SUBTITLE_COLOR
@@ -290,26 +297,26 @@ export default class MainMenuScene extends Phaser.Scene {
     timestamp.setOrigin(1, 0.5);
 
     const loadButton = this.createActionButton(
-      "Load",
+      "載入",
       loadButtonCenterX,
       SLOT_ROW_HEIGHT / 2,
       LOAD_BUTTON_IDLE,
       LOAD_BUTTON_HOVER,
       BUTTON_TEXT_DARK,
       () => {
-        this.handleLoad(slot.id);
+        this.handle載入(slot.id);
       }
     );
 
     const deleteButton = this.createActionButton(
-      "Delete",
+      "刪除",
       deleteButtonCenterX,
       SLOT_ROW_HEIGHT / 2,
       DELETE_BUTTON_IDLE,
       DELETE_BUTTON_HOVER,
       BUTTON_TEXT_LIGHT,
       () => {
-        this.handleDelete(slot.id);
+        this.handle刪除(slot.id);
       }
     );
 
@@ -366,9 +373,9 @@ export default class MainMenuScene extends Phaser.Scene {
   }
 
   /**
-   * Loads an existing slot and transitions into gameplay when successful.
+   * 載入s an existing slot and transitions into gameplay when successful.
    */
-  private handleLoad(slotId: string): void {
+  private handle載入(slotId: string): void {
     const restored = SaveSystem.load(slotId);
     if (!restored) {
       this.refreshSlotList();
@@ -380,9 +387,9 @@ export default class MainMenuScene extends Phaser.Scene {
   }
 
   /**
-   * Deletes a slot from persistence and refreshes the UI listing.
+   * 刪除s a slot from persistence and refreshes the UI listing.
    */
-  private handleDelete(slotId: string): void {
+  private handle刪除(slotId: string): void {
     SaveSystem.delete(slotId);
     this.refreshSlotList();
   }
@@ -448,7 +455,7 @@ export default class MainMenuScene extends Phaser.Scene {
     background.setStrokeStyle(2, PANEL_BORDER_COLOR, 0.42);
     panel.add(background);
 
-    const title = this.add.text(0, -SUCCESSION_PANEL_HEIGHT / 2 + 24, "New Sovereign Ascends", {
+    const title = this.add.text(0, -SUCCESSION_PANEL_HEIGHT / 2 + 24, "新君即位", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "28px",
       fontStyle: "bold",
@@ -457,7 +464,7 @@ export default class MainMenuScene extends Phaser.Scene {
     title.setOrigin(0.5, 0);
     panel.add(title);
 
-    const subtitle = this.add.text(0, title.y + 34, "Draw a royal mandate to define this reign.", {
+    const subtitle = this.add.text(0, title.y + 34, "抽取王室詔令以塑造本次統治。", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "18px",
       color: PANEL_SUBTITLE_COLOR
@@ -472,7 +479,7 @@ export default class MainMenuScene extends Phaser.Scene {
     const seedLabel = this.add.text(
       SUCCESSION_PANEL_WIDTH / 2 - 24,
       -SUCCESSION_PANEL_HEIGHT / 2 + 30,
-      `Seed ${runSeed.toString(36).toUpperCase()}`,
+      `種子 ${runSeed.toString(36).toUpperCase()}`,
       {
         fontFamily: "Segoe UI, sans-serif",
         fontSize: "14px",
@@ -485,7 +492,7 @@ export default class MainMenuScene extends Phaser.Scene {
     const detailText = this.add.text(
       -SUCCESSION_PANEL_WIDTH / 2 + 32,
       -SUCCESSION_PANEL_HEIGHT / 2 + 120,
-      "Select a royal mandate to review its decrees.",
+      "選擇一項王室詔令以檢視其敕令。",
       {
         fontFamily: "Segoe UI, sans-serif",
         fontSize: "16px",
@@ -534,17 +541,17 @@ export default class MainMenuScene extends Phaser.Scene {
     });
 
     const buttonY = SUCCESSION_PANEL_HEIGHT / 2 - 48;
-    this.createOverlayButton(panel, "Cancel", -120, buttonY, () => {
+    this.createOverlayButton(panel, "取消", -120, buttonY, () => {
       this.clearSuccessionOverlay();
     });
 
-    const confirmControl = this.createOverlayButton(panel, "Begin Reign", 120, buttonY, () => {
+    const confirmControl = this.createOverlayButton(panel, "開始統治", 120, buttonY, () => {
       this.finalizeSuccessionSelection(selectedCard, runSeed);
     });
     setConfirmEnabled = confirmControl.setEnabled;
 
     if (cards.length === 0) {
-      detailText.setText("No royal mandates are available. Begin the reign unburdened.");
+      detailText.setText("目前沒有王室詔令可用。無負擔地開始統治。");
       milestoneText.setText("");
       setConfirmEnabled(true);
     } else {
@@ -599,7 +606,7 @@ export default class MainMenuScene extends Phaser.Scene {
     background.setStrokeStyle(2, PANEL_BORDER_COLOR, 0.4);
     panel.add(background);
 
-    const title = this.add.text(0, -LEGACY_PANEL_HEIGHT / 2 + 24, "Succession Ledger", {
+    const title = this.add.text(0, -LEGACY_PANEL_HEIGHT / 2 + 24, "傳承檔案", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "26px",
       fontStyle: "bold",
@@ -608,7 +615,7 @@ export default class MainMenuScene extends Phaser.Scene {
     title.setOrigin(0.5, 0);
     panel.add(title);
 
-    const outcomeLabel = summary.outcome === "victory" ? "Triumphant Reign" : "Lessons of Defeat";
+    const outcomeLabel = summary.outcome === "victory" ? "勝利的統治" : "敗北的教訓";
     const outcomeText = this.add.text(0, title.y + 36, outcomeLabel, {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "18px",
@@ -644,7 +651,7 @@ export default class MainMenuScene extends Phaser.Scene {
     const nextTitle = this.add.text(
       -LEGACY_PANEL_WIDTH / 2 + 32,
       nextTitleY,
-      "Next Reign Mandates",
+      "下任詔令",
       {
         fontFamily: "Segoe UI, sans-serif",
         fontSize: "16px",
@@ -660,10 +667,10 @@ export default class MainMenuScene extends Phaser.Scene {
         ? summary.modifiers
             .map(
               (modifier) =>
-                `• ${modifier.label} — ${modifier.durationDays}d, +${modifier.prestigeReward} prestige`
+                `• ${modifier.label} — ${modifier.durationDays} 日，+${modifier.prestigeReward} 點聲望`
             )
             .join("\n")
-        : "• No mandates will carry into the next succession.";
+        : "• 下一任不會繼承任何詔令。";
 
     const modifiersBlock = this.add.text(
       -LEGACY_PANEL_WIDTH / 2 + 32,
@@ -682,7 +689,7 @@ export default class MainMenuScene extends Phaser.Scene {
     const seedLabel = this.add.text(
       LEGACY_PANEL_WIDTH / 2 - 24,
       -LEGACY_PANEL_HEIGHT / 2 + 30,
-      `Seed ${summary.seed.toString(36).toUpperCase()}`,
+      `種子 ${summary.seed.toString(36).toUpperCase()}`,
       {
         fontFamily: "Segoe UI, sans-serif",
         fontSize: "14px",
@@ -693,7 +700,7 @@ export default class MainMenuScene extends Phaser.Scene {
     panel.add(seedLabel);
 
     const buttonY = LEGACY_PANEL_HEIGHT / 2 - 48;
-    this.createOverlayButton(panel, "Archive Legacy", 0, buttonY, () => {
+    this.createOverlayButton(panel, "封存傳承", 0, buttonY, () => {
       this.clearSettlementOverlay();
     });
   }
@@ -744,7 +751,7 @@ export default class MainMenuScene extends Phaser.Scene {
     const footer = this.add.text(
       0,
       MANDATE_CARD_HEIGHT / 2 - 54,
-      `Prestige +${card.prestigeReward}\nDuration ${card.durationDays}d`,
+      `聲望 +${card.prestigeReward}\n持續時間 ${card.durationDays} 日`,
       {
         fontFamily: "Segoe UI, sans-serif",
         fontSize: "14px",
@@ -779,19 +786,19 @@ export default class MainMenuScene extends Phaser.Scene {
     const lines: string[] = [];
     lines.push(card.effectSummary);
     lines.push("");
-    lines.push("Requirements:");
+    lines.push("需求：");
     if (card.requirements.length === 0) {
-      lines.push("• None specified.");
+      lines.push("• 無特別需求。");
     } else {
       card.requirements.forEach((requirement) => {
         lines.push(`• ${this.formatRequirement(requirement)}`);
       });
     }
     lines.push("");
-    lines.push("Rewards:");
+    lines.push("獎勵：");
     lines.push(this.formatConsequenceList(card.rewards));
     lines.push("");
-    lines.push("Penalties:");
+    lines.push("懲罰：");
     lines.push(this.formatConsequenceList(card.penalties));
     return lines.join("\n");
   }
@@ -802,9 +809,9 @@ export default class MainMenuScene extends Phaser.Scene {
     }
 
     const lines = card.milestones.map(
-      (milestone) => `• Day ${milestone.day}: ${milestone.label} — ${milestone.description}`
+      (milestone) => `• 第${milestone.day}日：${milestone.label} — ${milestone.description}`
     );
-    return `Milestones:\n${lines.join("\n")}`;
+    return `里程碑：\n${lines.join("\n")}`;
   }
 
   private formatRequirement(requirement: MandateCardView["requirements"][number]): string {
@@ -814,7 +821,7 @@ export default class MainMenuScene extends Phaser.Scene {
 
   private formatConsequenceList(entries: ReadonlyArray<{ resource: string; amount: number }>): string {
     if (entries.length === 0) {
-      return "• None.";
+      return "• 無。";
     }
 
     return entries
@@ -828,6 +835,11 @@ export default class MainMenuScene extends Phaser.Scene {
   }
 
   private capitalizeResource(resource: string): string {
+    const mapped = RESOURCE_LABEL_MAP[resource];
+    if (mapped) {
+      return mapped;
+    }
+
     return resource.length === 0
       ? resource
       : resource.charAt(0).toUpperCase() + resource.slice(1);

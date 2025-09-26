@@ -22,7 +22,7 @@ export default class PreloadScene extends Phaser.Scene {
   public override preload(): void {
     const { width, height } = this.scale;
 
-    const progressText = this.add.text(width / 2, height / 2 - 48, "Loading...", {
+    const progressText = this.add.text(width / 2, height / 2 - 48, "載入中...", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "28px",
       color: "#ffffff"

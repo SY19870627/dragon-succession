@@ -35,11 +35,11 @@ export async function registerServiceWorker(): Promise<void> {
 
       installing.addEventListener("statechange", () => {
         if (installing.state === "installed" && navigator.serviceWorker.controller) {
-          console.info("[PWA] New content cached. Reload to update.");
+          console.info("[PWA] 新內容已快取，請重新載入以套用更新。");
         }
       });
     });
   } catch (error) {
-    console.warn("[PWA] Service worker registration failed", error);
+    console.warn("[PWA] Service Worker 註冊失敗", error);
   }
 }

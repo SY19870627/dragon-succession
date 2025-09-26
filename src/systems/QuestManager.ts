@@ -2,10 +2,10 @@
 import RNG from "../utils/RNG";
 
 const SUMMARY_TEMPLATES: Record<ThreatLevel, string> = {
-  Low: "Scout the outskirts and report unusual activity.",
-  Moderate: "Confront roaming hostiles threatening nearby villages.",
-  Severe: "Lead a strike team to dismantle entrenched forces.",
-  Catastrophic: "Rally every available knight to halt an emerging catastrophe."
+  Low: "偵察邊境並回報異常動向。",
+  Moderate: "迎擊威脅近郊村落的流竄敵軍。",
+  Severe: "率領突擊隊瓦解盤據的敵軍。",
+  Catastrophic: "集結所有可用騎士阻止正浮現的災厄。"
 };
 
 /**

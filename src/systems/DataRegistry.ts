@@ -156,7 +156,7 @@ class DataRegistry {
 
   private ensureInitialized(): void {
     if (!this.initialized) {
-      throw new Error("DataRegistry must be initialized before accessing data.");
+      throw new Error("在存取資料前必須先初始化 DataRegistry。");
     }
   }
 
@@ -166,7 +166,7 @@ class DataRegistry {
     label: string
   ): T[] {
     if (!Array.isArray(raw)) {
-      console.warn(`[DataRegistry] Expected an array for ${label} data.`);
+      console.warn(`[DataRegistry] ${label} 資料應為陣列。`);
       return [];
     }
 
@@ -175,7 +175,7 @@ class DataRegistry {
       if (validator(entry)) {
         entries.push(entry);
       } else {
-        console.warn(`[DataRegistry] Skipped invalid ${label} entry at index ${index}.`);
+        console.warn(`[DataRegistry] 已略過索引 ${index} 的無效 ${label} 項目。`);
       }
     });
 

@@ -17,7 +17,7 @@ const DEFAULT_RESOURCES: ResourceSnapshot = {
 const DEFAULT_QUEUE: QueueItemState[] = [
   {
     id: "tutorial-intro",
-    label: "Awaiting royal decree",
+    label: "等待王令",
     remainingSeconds: 0
   }
 ];
