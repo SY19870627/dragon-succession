@@ -83,8 +83,8 @@ const composeLegacyNotes = (outcome: RunOutcome, modifiers: ReadonlyArray<RunMod
   const notes: string[] = [];
   notes.push(
     outcome === "victory"
-      ? "The realm celebrates a decisive triumph over the wyrm."
-      : "Though defeated, the lineage steels itself for another attempt."
+      ? "王國歡慶對巨龍的決定性勝利。"
+      : "即使敗北，王室血脈仍磨礪再戰的決心。"
   );
 
   modifiers.forEach((modifier) => {
@@ -92,10 +92,10 @@ const composeLegacyNotes = (outcome: RunOutcome, modifiers: ReadonlyArray<RunMod
   });
 
   if (modifiers.length === 0) {
-    notes.push("No royal mandates were enforced during this reign.");
+    notes.push("本次統治未執行任何王室詔令。");
   } else {
     const prestigeTotal = modifiers.reduce((total, modifier) => total + modifier.prestigeReward, 0);
-    notes.push(`Heirs inherit ${prestigeTotal} accumulated prestige from honoured mandates.`);
+    notes.push(`繼承者自榮耀詔令累積 ${prestigeTotal} 點聲望。`);
   }
 
   return notes;

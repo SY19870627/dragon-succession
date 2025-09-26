@@ -183,12 +183,12 @@ class BattleSimulator {
     }
 
     const descriptors = [
-      "enemy positions mapped",
-      "captured scout interrogation",
-      "recovered tactical schematics",
-      "decoded war plans"
+      "繪製敵方位置",
+      "審訊俘虜斥候",
+      "追回戰術藍圖",
+      "破譯戰爭計畫"
     ];
-    const detail = descriptors[Math.floor(rng.next() * descriptors.length)] ?? "gained intelligence";
+    const detail = descriptors[Math.floor(rng.next() * descriptors.length)] ?? "獲得情報";
 
     const dragonIntelRange = encounter.dragonIntelRange;
     let dragonIntelGained = 0;
@@ -332,7 +332,7 @@ class BattleSimulator {
     events.push({
       id: `${encounter.id}-intro`,
       type: "intro",
-      label: "Deployment",
+      label: "部署",
       description: introDescription,
       round: 0,
       cumulativeDamageDealt: 0,
@@ -360,7 +360,7 @@ class BattleSimulator {
       cumulativeDealt += dealtDelta;
       cumulativeTaken += takenDelta;
 
-      const label = totalRounds > 0 ? `Round ${roundNumber}` : "Skirmish";
+      const label = totalRounds > 0 ? `第 ${roundNumber} 回合` : "短暫交鋒";
       const description = this.describeRound(
         roundNumber,
         scriptedRounds,
@@ -459,17 +459,21 @@ class BattleSimulator {
     report: BattleReport
   ): string {
     if (party.length === 0) {
-      return `${encounter.name} forces advance unopposed as scouts fall back.`;
+      return `${encounter.name} 的部隊在無人阻擋下推進，斥候只得撤離。`;
     }
 
     const highlighted = party
       .slice(0, 3)
       .map((knight) => `${knight.name} "${knight.epithet}"`)
       .join("、");
-    const mention = highlighted.length > 0 ? `${highlighted}` : "The strike team";
-    const enemyNote = `${encounter.enemyCount} foes`;
-    const tone = report.outcome === "win" ? "confidently" : report.outcome === "loss" ? "with guarded resolve" : "cautiously";
-    return `${mention} engage ${enemyNote} of ${encounter.name} ${tone}.`;
+    const mention = highlighted.length > 0 ? `${highlighted}` : "突擊小隊";
+    const enemyNote = `${encounter.enemyCount} 名敵人`;
+    const tone = report.outcome === "win"
+      ? "信心十足地前進"
+      : report.outcome === "loss"
+        ? "帶著謹慎的決心"
+        : "小心翼翼地行動";
+    return `${mention} 迎向 ${encounter.name} 的 ${enemyNote}，${tone}。`;
   }
 
   private describeRound(
@@ -481,24 +485,24 @@ class BattleSimulator {
     outcome: BattleOutcome
   ): string {
     if (dealtDelta <= 0 && takenDelta <= 0) {
-      return "Both sides circle for advantage while scouts relay movements.";
+      return "雙方繞行尋找破綻，斥候來回傳遞動向。";
     }
 
     const pressure = dealtDelta - takenDelta;
     if (pressure > Math.max(10, takenDelta * 0.6)) {
-      const surge = round === totalRounds ? "final" : "decisive";
-      return `Knights launch a ${surge} push, cracking ${encounter.name}'s formation.`;
+      const surge = round === totalRounds ? "最後" : "關鍵";
+      return `騎士發起${surge}猛攻，撕裂 ${encounter.name} 的陣型。`;
     }
 
     if (takenDelta > dealtDelta * 1.25) {
-      return `${encounter.name} counters fiercely, forcing the line to tighten shields.`;
+      return `${encounter.name} 激烈反擊，迫使隊列緊守盾牆。`;
     }
 
     if (outcome === "flee" && round >= totalRounds) {
-      return "The order to fall back ripples through the ranks while covering volleys fly.";
+      return "撤退號角在隊列間響起，掩護箭雨隨之射出。";
     }
 
-    return "Steel clashes evenly as both sides trade disciplined blows.";
+    return "鋼鐵激昂交鳴，雙方有序互換攻勢。";
   }
 
   private describeOutcome(
@@ -508,26 +512,26 @@ class BattleSimulator {
   ): string {
     switch (report.outcome) {
       case "win": {
-        const closer = mvpName ? `${mvpName} leads the final charge` : "The strike team holds formation";
-        return `${closer} as ${encounter.name} breaks and scatters.`;
+        const closer = mvpName ? `${mvpName} 領軍發起最後衝鋒` : "突擊小隊穩住隊形";
+        return `${closer}，迫使 ${encounter.name} 潰散。`;
       }
       case "loss":
-        return `${encounter.name} overwhelms the line, forcing an emergency withdrawal.`;
+        return `${encounter.name} 壓垮防線，被迫緊急撤退。`;
       case "flee":
       default:
-        return "Signal horns blare and the party disengages before being encircled.";
+        return "號角尖鳴，部隊在被包圍前脫離戰場。";
     }
   }
 
   private outcomeLabel(outcome: BattleOutcome): string {
     switch (outcome) {
       case "win":
-        return "Victory";
+        return "勝利";
       case "loss":
-        return "Defeat";
+        return "敗北";
       case "flee":
       default:
-        return "Retreat";
+        return "撤退";
     }
   }
 

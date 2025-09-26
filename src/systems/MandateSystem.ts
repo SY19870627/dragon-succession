@@ -23,8 +23,21 @@ const cloneMandate = (mandate: RoyalMandate): RoyalMandate => ({
   penalties: mandate.penalties.map(cloneConsequence)
 });
 
-const capitalise = (value: string): string =>
-  value.length === 0 ? value : value.charAt(0).toUpperCase() + value.slice(1);
+const RESOURCE_LABEL_MAP: Record<string, string> = {
+  gold: "黃金",
+  food: "糧食",
+  fame: "聲望",
+  morale: "士氣"
+};
+
+const capitalise = (value: string): string => {
+  const mapped = RESOURCE_LABEL_MAP[value];
+  if (mapped) {
+    return mapped;
+  }
+
+  return value.length === 0 ? value : value.charAt(0).toUpperCase() + value.slice(1);
+};
 
 const describeRequirement = (requirement: MandateRequirement): string => {
   const symbol = requirement.comparison === "atLeast" ? "≥" : "≤";
@@ -33,14 +46,14 @@ const describeRequirement = (requirement: MandateRequirement): string => {
 
 const describeConsequences = (consequences: MandateConsequence[]): string => {
   if (consequences.length === 0) {
-    return "none";
+    return "無";
   }
   return consequences
     .map((entry) => {
       const sign = entry.amount >= 0 ? "+" : "";
       return `${sign}${entry.amount} ${capitalise(entry.resource)}`;
     })
-    .join(", ");
+    .join("、");
 };
 
 /**
@@ -129,11 +142,11 @@ class MandateSystem {
   public describeMandate(mandate: RoyalMandate): string {
     const requirementText =
       mandate.requirements.length > 0
-        ? `Maintain ${mandate.requirements.map(describeRequirement).join(", ")}.`
-        : "No explicit upkeep requirements.";
+        ? `維持 ${mandate.requirements.map(describeRequirement).join("、")}。`
+        : "無額外維持需求。";
 
-    const rewardText = `Rewards: ${describeConsequences(mandate.rewards)}.`;
-    const penaltyText = `Failure: ${describeConsequences(mandate.penalties)}.`;
+    const rewardText = `獎勵：${describeConsequences(mandate.rewards)}。`;
+    const penaltyText = `失敗：${describeConsequences(mandate.penalties)}。`;
 
     return `${requirementText} ${rewardText} ${penaltyText}`.trim();
   }
@@ -148,26 +161,26 @@ class MandateSystem {
     const requirementFocus =
       typeof primaryRequirement !== "undefined"
         ? describeRequirement(primaryRequirement)
-        : "Maintain stability";
+        : "維持穩定";
 
     const milestones: MandateMilestone[] = [
       {
         order: 1,
         day: 0,
-        label: "Edict Proclaimed",
-        description: `The royal court announces \"${mandate.title}\" to the realm.`
+        label: "詔令頒布",
+        description: `王室向全境頒布「${mandate.title}」。`
       },
       {
         order: 2,
         day: midPoint,
-        label: "Council Review",
-        description: `Progress is audited. Ensure ${requirementFocus}.`
+        label: "議會審查",
+        description: `進度遭到稽核，務必確保 ${requirementFocus}。`
       },
       {
         order: 3,
         day: duration,
-        label: "Final Audience",
-        description: `Present results to claim ${mandate.prestigeReward} prestige or face penalties.`
+        label: "最終覲見",
+        description: `呈報成果以獲得 ${mandate.prestigeReward} 點聲望，否則將面臨處分。`
       }
     ];
 
@@ -192,7 +205,7 @@ class MandateSystem {
 
   private ensureInitialized(): void {
     if (!this.initialized) {
-      throw new Error("MandateSystem must be initialized before use.");
+      throw new Error("MandateSystem 在使用前必須先初始化。");
     }
   }
 }

@@ -1,56 +1,106 @@
-﻿[
+[
   {
     "id": "secure-harvest",
-    "title": "Secure the Harvest",
-    "summary": "Ensure grain stores can weather the looming blight.",
+    "title": "確保收成",
+    "summary": "確保穀倉能撐過逼近的枯疫。",
     "durationDays": 14,
     "prestigeReward": 2,
     "requirements": [
-      {"resource": "food", "target": 90, "comparison": "atLeast"}
+      {
+        "resource": "food",
+        "target": 90,
+        "comparison": "atLeast"
+      }
     ],
     "rewards": [
-      {"resource": "morale", "amount": 10},
-      {"resource": "fame", "amount": 3}
+      {
+        "resource": "morale",
+        "amount": 10
+      },
+      {
+        "resource": "fame",
+        "amount": 3
+      }
     ],
     "penalties": [
-      {"resource": "morale", "amount": -8}
+      {
+        "resource": "morale",
+        "amount": -8
+      }
     ]
   },
   {
     "id": "fortify-northern-pass",
-    "title": "Fortify the Northern Pass",
-    "summary": "Raise bulwarks before the wyrmling regroups.",
+    "title": "加固北方關卡",
+    "summary": "在幼龍重整前築起防線。",
     "durationDays": 10,
     "prestigeReward": 3,
     "requirements": [
-      {"resource": "gold", "target": 70, "comparison": "atLeast"},
-      {"resource": "morale", "target": 40, "comparison": "atLeast"}
+      {
+        "resource": "gold",
+        "target": 70,
+        "comparison": "atLeast"
+      },
+      {
+        "resource": "morale",
+        "target": 40,
+        "comparison": "atLeast"
+      }
     ],
     "rewards": [
-      {"resource": "fame", "amount": 5},
-      {"resource": "morale", "amount": 6}
+      {
+        "resource": "fame",
+        "amount": 5
+      },
+      {
+        "resource": "morale",
+        "amount": 6
+      }
     ],
     "penalties": [
-      {"resource": "fame", "amount": -4}
+      {
+        "resource": "fame",
+        "amount": -4
+      }
     ]
   },
   {
     "id": "court-reforms",
-    "title": "Court Reforms",
-    "summary": "Restructure the court to quell intrigue and reward loyalists.",
+    "title": "宮廷改革",
+    "summary": "整頓宮廷以平息陰謀並獎賞忠臣。",
     "durationDays": 21,
     "prestigeReward": 4,
     "requirements": [
-      {"resource": "fame", "target": 12, "comparison": "atLeast"},
-      {"resource": "morale", "target": 20, "comparison": "atLeast"}
+      {
+        "resource": "fame",
+        "target": 12,
+        "comparison": "atLeast"
+      },
+      {
+        "resource": "morale",
+        "target": 20,
+        "comparison": "atLeast"
+      }
     ],
     "rewards": [
-      {"resource": "gold", "amount": 30},
-      {"resource": "morale", "amount": 12}
+      {
+        "resource": "gold",
+        "amount": 30
+      },
+      {
+        "resource": "morale",
+        "amount": 12
+      }
     ],
     "penalties": [
-      {"resource": "morale", "amount": -10},
-      {"resource": "gold", "amount": -20}
+      {
+        "resource": "morale",
+        "amount": -10
+      },
+      {
+        "resource": "gold",
+        "amount": -20
+      }
     ]
   }
 ]

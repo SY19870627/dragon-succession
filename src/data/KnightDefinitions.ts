@@ -29,32 +29,32 @@ export interface KnightTraitDefinition {
 export const KNIGHT_PROFESSIONS: readonly KnightProfessionDefinition[] = [
   {
     id: "Guardian",
-    title: "Guardian",
-    description: "Shield-bearing bulwark that anchors the battle line.",
+    title: "守護者",
+    description: "持盾如壁壘，穩固整條戰線。",
     baseAttributes: { might: 68, agility: 42, willpower: 58 }
   },
   {
     id: "Lancer",
-    title: "Lancer",
-    description: "Swift cavalry expert excelling at shock charges.",
+    title: "槍騎士",
+    description: "迅捷騎兵，擅長迅雷般的衝鋒。",
     baseAttributes: { might: 62, agility: 66, willpower: 48 }
   },
   {
     id: "Spellblade",
-    title: "Spellblade",
-    description: "Sword mage weaving arcane arts into close combat.",
+    title: "魔刃師",
+    description: "將劍術與秘法融於近戰的劍法法師。",
     baseAttributes: { might: 54, agility: 58, willpower: 72 }
   },
   {
     id: "Ranger",
-    title: "Ranger",
-    description: "Warden of the wilds wielding versatile ranged tactics.",
+    title: "遊俠",
+    description: "荒野的守護者，善用多變的遠程戰術。",
     baseAttributes: { might: 48, agility: 70, willpower: 56 }
   },
   {
     id: "Sentinel",
-    title: "Sentinel",
-    description: "Pike commander specializing in disciplined formations.",
+    title: "戍衛者",
+    description: "操長槍的指揮官，精於嚴整的隊形。",
     baseAttributes: { might: 60, agility: 52, willpower: 64 }
   }
 ] as const;
@@ -62,55 +62,55 @@ export const KNIGHT_PROFESSIONS: readonly KnightProfessionDefinition[] = [
 export const KNIGHT_TRAITS: readonly KnightTraitDefinition[] = [
   {
     id: "steadfast",
-    label: "Steadfast",
-    description: "Maintains composure under pressure, reducing fatigue buildup."
+    label: "堅定",
+    description: "在壓力下依然鎮定，自然減緩疲勞累積。"
   },
   {
     id: "reckless",
-    label: "Reckless",
-    description: "Charges headlong into danger, risking higher injury but rapid victories."
+    label: "魯莽",
+    description: "不顧危險地衝鋒，換取快速勝利卻也增加傷害風險。"
   },
   {
     id: "strategist",
-    label: "Strategist",
-    description: "Meticulous planner who excels at coordinated maneuvers."
+    label: "謀士",
+    description: "縝密的策士，擅長協同調度。"
   },
   {
     id: "vigilant",
-    label: "Vigilant",
-    description: "Ever-watchful scout with heightened battlefield awareness."
+    label: "警覺",
+    description: "時刻警醒的斥候，對戰場動態極為敏銳。"
   },
   {
     id: "charismatic",
-    label: "Charismatic",
-    description: "Inspirational leader who rallies nearby allies."
+    label: "魅力",
+    description: "鼓舞人心的領袖，能凝聚周遭盟友士氣。"
   }
 ] as const;
 
 export const KNIGHT_FIRST_NAMES: readonly string[] = [
-  "Aldric",
-  "Brienne",
-  "Caelan",
-  "Darian",
-  "Elara",
-  "Fiora",
-  "Gareth",
-  "Isolde",
-  "Lysander",
-  "Rowan"
+  "奧德里克",
+  "布莉恩",
+  "凱倫",
+  "達里安",
+  "艾拉拉",
+  "菲奧拉",
+  "加雷斯",
+  "伊索德",
+  "萊桑德",
+  "羅恩"
 ] as const;
 
 export const KNIGHT_EPITHETS: readonly string[] = [
-  "the Bold",
-  "Ironheart",
-  "Stormwarden",
-  "the Silverwing",
-  "Dawnbreaker",
-  "the Resolute",
-  "the Farstrider",
-  "the Emberguard",
-  "Frostbane",
-  "the Stalwart"
+  "無畏者",
+  "鐵心",
+  "風暴守望",
+  "銀翼者",
+  "破曉者",
+  "堅決者",
+  "遠行者",
+  "餘燼守衛",
+  "霜滅者",
+  "堅毅者"
 ] as const;
 
 /**

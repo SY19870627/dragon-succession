@@ -1,42 +1,63 @@
-﻿[
+[
   {
     "id": "famine-rumor",
-    "title": "Whispers of Famine",
-    "prompt": "Merchants report blight creeping across the western fields.",
+    "title": "饑荒的耳語",
+    "prompt": "商人通報西方農田出現枯疫蔓延。",
     "category": "economy",
     "weight": 5,
-    "tags": ["food", "risk"],
+    "tags": [
+      "food",
+      "risk"
+    ],
     "requirements": [
-      {"resource": "food", "minimum": 30}
+      {
+        "resource": "food",
+        "minimum": 30
+      }
     ],
     "choices": [
       {
         "id": "inspect-granaries",
-        "label": "Inspect the granaries",
+        "label": "檢查糧倉",
         "successRate": 0.7,
         "success": {
-          "description": "The stores are secured and the garrison is reassured.",
+          "description": "糧倉已被妥善封存，守軍也得到安撫。",
           "effects": [
-            {"resource": "morale", "amount": 6}
+            {
+              "resource": "morale",
+              "amount": 6
+            }
           ]
         },
         "failure": {
-          "description": "Spoilage was missed and the reserves rot silently.",
+          "description": "未能及時發現腐敗，儲糧在無聲中腐爛。",
           "effects": [
-            {"resource": "food", "amount": -12},
-            {"resource": "morale", "amount": -4}
+            {
+              "resource": "food",
+              "amount": -12
+            },
+            {
+              "resource": "morale",
+              "amount": -4
+            }
           ]
         }
       },
       {
         "id": "import-grain",
-        "label": "Import distant grain",
+        "label": "從遠方進口穀物",
         "successRate": 0.9,
         "success": {
-          "description": "Foreign caravans arrive laden with grain.",
+          "description": "外地商隊載滿穀物抵達。",
           "effects": [
-            {"resource": "food", "amount": 20},
-            {"resource": "gold", "amount": -18}
+            {
+              "resource": "food",
+              "amount": 20
+            },
+            {
+              "resource": "gold",
+              "amount": -18
+            }
           ]
         }
       }
@@ -44,51 +65,78 @@
   },
   {
     "id": "dragon-sighting",
-    "title": "Dragon Sighting",
-    "prompt": "Scouts glimpsed a winged shadow near the northern pass.",
+    "title": "龍影目擊",
+    "prompt": "斥候在北方山口瞥見翼影。",
     "category": "war",
     "weight": 3,
-    "tags": ["dragon", "panic"],
+    "tags": [
+      "dragon",
+      "panic"
+    ],
     "requirements": [
-      {"resource": "morale", "minimum": 25}
+      {
+        "resource": "morale",
+        "minimum": 25
+      }
     ],
     "choices": [
       {
         "id": "scramble-archers",
-        "label": "Scramble the archers",
+        "label": "緊急調動弓手",
         "successRate": 0.65,
         "success": {
-          "description": "The wyrmling is driven back by a barrage of bolts.",
+          "description": "幼龍被箭雨逼退。",
           "effects": [
-            {"resource": "fame", "amount": 4},
-            {"resource": "morale", "amount": 5}
+            {
+              "resource": "fame",
+              "amount": 4
+            },
+            {
+              "resource": "morale",
+              "amount": 5
+            }
           ]
         },
         "failure": {
-          "description": "The archers scatter, leaving the pass exposed.",
+          "description": "弓手四散，山口暴露無遁。",
           "effects": [
-            {"resource": "morale", "amount": -8}
+            {
+              "resource": "morale",
+              "amount": -8
+            }
           ],
           "followUpEventId": "wyrmling-retaliation"
         }
       },
       {
         "id": "broker-truce",
-        "label": "Send an envoy to broker a truce",
+        "label": "派遣使者斡旋停戰",
         "successRate": 0.5,
         "success": {
-          "description": "The wyrmling accepts tribute and shares rumors of rival dragons.",
+          "description": "幼龍收下貢品，還透露敵對龍族的傳聞。",
           "effects": [
-            {"resource": "fame", "amount": 6},
-            {"resource": "gold", "amount": -20}
+            {
+              "resource": "fame",
+              "amount": 6
+            },
+            {
+              "resource": "gold",
+              "amount": -20
+            }
           ],
           "followUpEventId": "dragon-intelligence"
         },
         "failure": {
-          "description": "The envoy vanishes in smoke, morale plummets.",
+          "description": "使者於硝煙中失蹤，士氣急墜。",
           "effects": [
-            {"resource": "morale", "amount": -10},
-            {"resource": "gold", "amount": -10}
+            {
+              "resource": "morale",
+              "amount": -10
+            },
+            {
+              "resource": "gold",
+              "amount": -10
+            }
           ]
         }
       }
@@ -96,43 +144,67 @@
   },
   {
     "id": "courtly-intrigue",
-    "title": "Courtly Intrigue",
-    "prompt": "Nobles vie for influence after the latest royal proclamation.",
+    "title": "宮廷陰謀",
+    "prompt": "貴族在最新的王室詔令後爭奪影響力。",
     "category": "court",
     "weight": 4,
-    "tags": ["court", "politics"],
+    "tags": [
+      "court",
+      "politics"
+    ],
     "requirements": [
-      {"resource": "fame", "minimum": 5}
+      {
+        "resource": "fame",
+        "minimum": 5
+      }
     ],
     "choices": [
       {
         "id": "host-banquet",
-        "label": "Host a conciliatory banquet",
+        "label": "舉辦和解宴會",
         "successRate": 0.8,
         "success": {
-          "description": "The nobles leave sated and full of praise.",
+          "description": "貴族們飽足離席，滿口稱讚。",
           "effects": [
-            {"resource": "morale", "amount": 6},
-            {"resource": "fame", "amount": 3},
-            {"resource": "gold", "amount": -15}
+            {
+              "resource": "morale",
+              "amount": 6
+            },
+            {
+              "resource": "fame",
+              "amount": 3
+            },
+            {
+              "resource": "gold",
+              "amount": -15
+            }
           ]
         }
       },
       {
         "id": "back-ally",
-        "label": "Back a daring ally",
+        "label": "支持大膽盟友",
         "successRate": 0.55,
         "success": {
-          "description": "Your ally unearths corruption and pledges support.",
+          "description": "盟友揭露貪腐並承諾鼎力相助。",
           "effects": [
-            {"resource": "fame", "amount": 7}
+            {
+              "resource": "fame",
+              "amount": 7
+            }
           ]
         },
         "failure": {
-          "description": "The gambit fails and the court whispers grow colder.",
+          "description": "計謀失利，宮廷流言愈加冷冽。",
           "effects": [
-            {"resource": "fame", "amount": -6},
-            {"resource": "morale", "amount": -3}
+            {
+              "resource": "fame",
+              "amount": -6
+            },
+            {
+              "resource": "morale",
+              "amount": -3
+            }
           ]
         }
       }

@@ -224,7 +224,7 @@ export default class BattleScene extends Phaser.Scene {
     this.logText.setText(this.logLines.join("\n"));
 
     this.statsText.setText(
-      `Damage Dealt: ${event.cumulativeDamageDealt}\nDamage Taken: ${event.cumulativeDamageTaken}`
+      `造成傷害: ${event.cumulativeDamageDealt}\n承受傷害: ${event.cumulativeDamageTaken}`
     );
 
     const progress = (this.currentEventIndex + 1) / this.script.events.length;
@@ -279,7 +279,7 @@ export default class BattleScene extends Phaser.Scene {
     summaryLines.push(`回合數：${this.report.rounds}`);
     summaryLines.push(`總輸出：${this.report.damageDealt}`);
     summaryLines.push(`總承傷：${this.report.damageTaken}`);
-    summaryLines.push(`MVP：${mvpName ?? "無"}`);
+    summaryLines.push(`最佳表現：${mvpName ?? "無"}`);
 
     const summaryText = this.add.text(0, this.panelHeight / 2 - 128, summaryLines.join("\n"), {
       fontFamily: "Segoe UI, sans-serif",
@@ -317,9 +317,9 @@ export default class BattleScene extends Phaser.Scene {
 
   private buildHeaderText(): string {
     if (!this.encounter) {
-      return "Battle Playback";
+      return "戰鬥回放";
     }
-    return `${this.questLabel} vs ${this.encounter.name}`;
+    return `${this.questLabel} 對決 ${this.encounter.name}`;
   }
 
   private buildSubHeaderText(): string {

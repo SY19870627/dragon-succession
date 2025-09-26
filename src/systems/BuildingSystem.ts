@@ -380,14 +380,14 @@ class BuildingSystem {
 
   private parseDefinitions(raw: unknown): BuildingDefinition[] {
     if (!Array.isArray(raw)) {
-      console.warn("[BuildingSystem] Invalid building definition payload, expected an array.");
+      console.warn("[BuildingSystem] 建築定義資料無效，預期應為陣列。");
       return [];
     }
 
     const parsed: BuildingDefinition[] = [];
     raw.forEach((entry, index) => {
       if (!isDefinition(entry)) {
-        console.warn(`[BuildingSystem] Skipped invalid building definition at index ${index}.`);
+        console.warn(`[BuildingSystem] 已略過索引 ${index} 的無效建築定義。`);
         return;
       }
 

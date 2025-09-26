@@ -35,10 +35,10 @@ const QUALITY_WEIGHTS: QualityWeight[] = [
 ];
 
 const QUALITY_LABEL: Record<ItemQuality, string> = {
-  crude: "Crude",
-  standard: "Tempered",
-  fine: "Refined",
-  masterwork: "Mythic"
+  crude: "粗製",
+  standard: "鍛造",
+  fine: "精製",
+  masterwork: "傳奇"
 };
 
 const QUALITY_VALUE_MULTIPLIER: Record<ItemQuality, number> = {
@@ -63,15 +63,15 @@ const RARITY_UPGRADE_STEPS: RarityUpgradeStep[] = [
 ];
 
 const AFFIX_POOL: AffixDefinition[] = [
-  { id: "str", label: "Might", stat: "strength", min: 2, max: 6, weight: 40 },
-  { id: "int", label: "Wisdom", stat: "intellect", min: 2, max: 6, weight: 40 },
-  { id: "vit", label: "Vitality", stat: "vitality", min: 3, max: 8, weight: 30 }
+  { id: "str", label: "力量", stat: "strength", min: 2, max: 6, weight: 40 },
+  { id: "int", label: "智慧", stat: "intellect", min: 2, max: 6, weight: 40 },
+  { id: "vit", label: "體魄", stat: "vitality", min: 3, max: 8, weight: 30 }
 ];
 
 const AFFIX_PREFIX: Record<ItemAffix["stat"], string> = {
-  strength: "Mighty",
-  intellect: "Sage's",
-  vitality: "Stalwart"
+  strength: "強韌",
+  intellect: "賢者的",
+  vitality: "堅毅"
 };
 
 /**
@@ -92,7 +92,7 @@ class CraftingSystem {
 
     const resultDefinition = dataRegistry.getItemById(recipe.result.itemId);
     if (!resultDefinition) {
-      throw new Error(`Unknown item definition ${recipe.result.itemId}`);
+      throw new Error(`未知的物品定義 ${recipe.result.itemId}`);
     }
 
     const quality = this.rollQuality(smithLevel, rng);
@@ -106,7 +106,8 @@ class CraftingSystem {
       id: resultDefinition.id,
       baseItemId: resultDefinition.id,
       name,
-      description: `${resultDefinition.description}\nForged with ${QUALITY_LABEL[quality]} craftsmanship.`,
+      description: `${resultDefinition.description}
+以 ${QUALITY_LABEL[quality]} 的工藝鍛造完成。`,
       rarity,
       value: Math.round(resultDefinition.value * QUALITY_VALUE_MULTIPLIER[quality]),
       tags: [...resultDefinition.tags],
@@ -124,7 +125,7 @@ class CraftingSystem {
   private getRecipe(recipeId: string): Recipe {
     const recipe = dataRegistry.getRecipeById(recipeId);
     if (!recipe) {
-      throw new Error(`Unknown recipe ${recipeId}`);
+      throw new Error(`未知的配方 ${recipeId}`);
     }
     return recipe;
   }
@@ -142,7 +143,7 @@ class CraftingSystem {
     });
 
     if (missing.length > 0) {
-      throw new Error(`Insufficient materials for recipe ${recipe.id}`);
+      throw new Error(`配方 ${recipe.id} 的材料不足`);
     }
   }
 

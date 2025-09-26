@@ -162,7 +162,7 @@ export default class CastleScene extends Phaser.Scene {
   private initializeData(): void {
     dataRegistry.initialize();
     const items = dataRegistry.getItems();
-    console.log("[CastleScene] Loaded items", items, "slot", this.activeSlotId);
+    console.log("[CastleScene] 已載入物品", items, "slot", this.activeSlotId);
   }
 
   /**
@@ -227,7 +227,7 @@ export default class CastleScene extends Phaser.Scene {
     button.on("pointerout", () => button.setFillStyle(0x1e3465, 1));
     button.on("pointerup", () => this.openMapScene());
 
-    const label = this.add.text(x, y, "Open Strategic Map", {
+    const label = this.add.text(x, y, "開啟戰略地圖", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "18px",
       color: "#f5f6fa"
@@ -272,7 +272,7 @@ export default class CastleScene extends Phaser.Scene {
       banner.setStrokeStyle(4, 0xffffff, 0.6);
     });
 
-    const label = this.add.text(width / 2, height * 0.65, "Castle Keep", {
+    const label = this.add.text(width / 2, height * 0.65, "城堡主堡", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "40px",
       fontStyle: "bold",
@@ -280,7 +280,7 @@ export default class CastleScene extends Phaser.Scene {
     });
     label.setOrigin(0.5);
 
-    this.add.text(width / 2, height * 0.72, "Gameplay scene placeholder", {
+    this.add.text(width / 2, height * 0.72, "遊戲場景佔位符", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "20px",
       color: "#dfe6e9"
@@ -306,7 +306,7 @@ export default class CastleScene extends Phaser.Scene {
     background.setTint(0x1b2a4b);
     container.add(background);
 
-    const header = this.add.text(0, -panelHeight / 2 + 32, "Expedition Dispatch", {
+    const header = this.add.text(0, -panelHeight / 2 + 32, "遠征派遣", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "22px",
       fontStyle: "bold",
@@ -315,7 +315,7 @@ export default class CastleScene extends Phaser.Scene {
     header.setOrigin(0.5, 0);
     container.add(header);
 
-    const rosterLabel = this.add.text(-panelWidth / 2 + 24, -panelHeight / 2 + 72, "Select 4-6 Knights", {
+    const rosterLabel = this.add.text(-panelWidth / 2 + 24, -panelHeight / 2 + 72, "選擇 4-6 名騎士", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "16px",
       color: "#cbd5f5"
@@ -325,7 +325,7 @@ export default class CastleScene extends Phaser.Scene {
     const rosterList = this.add.container(-panelWidth / 2 + 24, -panelHeight / 2 + 104);
     container.add(rosterList);
 
-    const questLabel = this.add.text(-panelWidth / 2 + 24, -panelHeight / 2 + 252, "Quest Drafts", {
+    const questLabel = this.add.text(-panelWidth / 2 + 24, -panelHeight / 2 + 252, "任務草案", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "16px",
       color: "#cbd5f5"
@@ -352,12 +352,12 @@ export default class CastleScene extends Phaser.Scene {
       if (this.isDispatchReady()) {
         this.executeExpedition();
       } else {
-        this.updateDispatchStatus("Select 4-6 knights and a quest.");
+        this.updateDispatchStatus("選擇 4 至 6 名騎士與一項任務。");
       }
     });
     container.add(buttonRect);
 
-    const buttonLabel = this.add.text(0, panelHeight / 2 - 72, "Resolve Expedition", {
+    const buttonLabel = this.add.text(0, panelHeight / 2 - 72, "結算遠征", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "18px",
       fontStyle: "bold",
@@ -792,7 +792,7 @@ export default class CastleScene extends Phaser.Scene {
     this.questData.clear();
 
     if (quests.length === 0) {
-      const placeholder = this.add.text(0, 0, "No quest drafts. Create assignments via the map.", {
+      const placeholder = this.add.text(0, 0, "沒有任務草案。請透過地圖建立任務。", {
         fontFamily: "Segoe UI, sans-serif",
         fontSize: "14px",
         color: "#94a3b8",
@@ -856,7 +856,7 @@ export default class CastleScene extends Phaser.Scene {
       this.selectedKnightIds.delete(knightId);
     } else {
       if (this.selectedKnightIds.size >= 6) {
-        this.updateDispatchStatus("Maximum of 6 knights per expedition.");
+        this.updateDispatchStatus("每次遠征最多 6 名騎士。");
         return;
       }
       this.selectedKnightIds.add(knightId);
@@ -903,7 +903,7 @@ export default class CastleScene extends Phaser.Scene {
     }
 
     const count = this.selectedKnightIds.size;
-    const questLine = this.selectedQuestId ? "Quest ready" : "No quest selected";
+    const questLine = this.selectedQuestId ? "任務就緒" : "未選擇任務";
     const defaultMessage = `Selected: ${count}/6 knights - ${questLine}`;
     this.dispatchInfoText.setText(defaultMessage);
   }
@@ -938,7 +938,7 @@ export default class CastleScene extends Phaser.Scene {
 
     const quest = this.questData.get(this.selectedQuestId);
     if (!quest) {
-      this.updateDispatchStatus("Selected quest is no longer available.");
+      this.updateDispatchStatus("所選任務已不可用。");
       this.selectedQuestId = null;
       this.updateDispatchStatus();
       return;
@@ -946,7 +946,7 @@ export default class CastleScene extends Phaser.Scene {
 
     const node = this.findNodeDefinition(quest.nodeId);
     if (!node) {
-      this.updateDispatchStatus("Unable to locate map node.");
+      this.updateDispatchStatus("無法找到地圖節點。");
       return;
     }
 
@@ -973,53 +973,53 @@ export default class CastleScene extends Phaser.Scene {
     this.selectedKnightIds.clear();
 
     this.refreshDispatchPanel();
-    this.updateDispatchStatus("Expedition resolved. Review battle report below.");
+    this.updateDispatchStatus("遠征已結算。請查看下方戰報。");
   }
 
   private formatExpeditionResult(result: ExpeditionResult, quest: QuestRecord): string {
     const node = this.findNodeDefinition(quest.nodeId);
     const lines: string[] = [];
-    lines.push(`Quest: ${quest.summary}`);
-    lines.push(`Location: ${node?.label ?? quest.nodeId} (${result.encounter.threatLevel})`);
+    lines.push(`任務：${quest.summary}`);
+    lines.push(`地點：${node?.label ?? quest.nodeId}（${result.encounter.threatLevel}）`);
     lines.push(
-      `Outcome: ${result.battleReport.outcome.toUpperCase()} in ${result.battleReport.rounds} rounds`
+      `結果：${result.battleReport.outcome.toUpperCase()}，歷時 ${result.battleReport.rounds} 回合`
     );
-    lines.push(`Damage Dealt: ${result.battleReport.damageDealt}`);
-    lines.push(`Damage Taken: ${result.battleReport.damageTaken}`);
+    lines.push(`造成傷害：${result.battleReport.damageDealt}`);
+    lines.push(`承受傷害：${result.battleReport.damageTaken}`);
 
     const mvp = result.party.find((knight) => knight.id === result.battleReport.mvpId);
-    lines.push(`MVP: ${mvp ? `${mvp.name} "${mvp.epithet}"` : "None"}`);
+    lines.push(`MVP: ${mvp ? `${mvp.name} "${mvp.epithet}"` : "無"}`);
 
     if (result.loot.items.length > 0) {
-      lines.push("Loot:");
+      lines.push("戰利品：");
       result.loot.items.forEach((item) => {
-        lines.push(` - ${item.name} x${item.quantity}`);
+        lines.push(` - ${item.name} ×${item.quantity}`);
       });
     } else {
-      lines.push("Loot: None");
+      lines.push("戰利品：無");
     }
 
     if (result.injuries.length > 0) {
-      lines.push("Injuries:");
+      lines.push("傷勢：");
       result.injuries.forEach((entry) => {
         const knight = result.party.find((candidate) => candidate.id === entry.knightId);
         const name = knight ? `${knight.name}` : entry.knightId;
-        lines.push(` - ${name} +${entry.injuryDelta} (total ${entry.resultingInjury})`);
+        lines.push(` - ${name} +${entry.injuryDelta}（累積 ${entry.resultingInjury}）`);
       });
     } else {
-      lines.push("Injuries: None");
+      lines.push("傷勢：無");
     }
 
     if (result.intel) {
-      lines.push(`Intel: ${result.intel.description}`);
+      lines.push(`情報：${result.intel.description}`);
       const gained = result.intel.dragonIntelGained;
       const intelSummary =
         gained > 0
-          ? `Dragon Intel +${gained} (Total ${result.intel.totalDragonIntel}/${result.intel.threshold})`
-          : `Dragon Intel ${result.intel.totalDragonIntel}/${result.intel.threshold}`;
+          ? `龍族情報 +${gained}（累計 ${result.intel.totalDragonIntel}/${result.intel.threshold}）`
+          : `龍族情報 ${result.intel.totalDragonIntel}/${result.intel.threshold}`;
       lines.push(intelSummary);
       if (result.intel.thresholdReached) {
-        lines.push("Dragon Lair sighted! Final assault unlocked.");
+        lines.push("已發現龍穴！最終攻勢解鎖。");
       }
     }
 

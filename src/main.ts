@@ -14,7 +14,7 @@ import { registerServiceWorker } from "./utils/registerServiceWorker";
  */
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
-  title: "Dragon Succession",
+  title: "龍族傳承",
   parent: "app",
   backgroundColor: "#0b0c10",
   width: 960,

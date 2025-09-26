@@ -22,10 +22,24 @@ const BUTTON_IDLE = 0x1f2f4a;
 const BUTTON_HOVER = 0x29415f;
 
 const SLOT_LABELS: Array<{ readonly id: EquipmentSlot; readonly label: string }> = [
-  { id: "weapon", label: "Weapon" },
-  { id: "armor", label: "Armor" },
-  { id: "trinket", label: "Trinket" }
+  { id: "weapon", label: "武器" },
+  { id: "armor", label: "防具" },
+  { id: "trinket", label: "飾品" }
 ];
+
+const QUALITY_NAME_MAP: Record<string, string> = {
+  crude: "粗製",
+  standard: "鍛造",
+  fine: "精製",
+  masterwork: "傳奇"
+};
+
+const RARITY_NAME_MAP: Record<string, string> = {
+  common: "普通",
+  uncommon: "罕見",
+  rare: "稀有",
+  legendary: "傳說"
+};
 
 type EquipmentSlot = "weapon" | "armor" | "trinket";
 
@@ -75,27 +89,27 @@ export default class CraftingPanel extends Phaser.GameObjects.Container {
     background.setOrigin(0, 0);
     background.setStrokeStyle(1, PANEL_BORDER, 0.25);
 
-    const title = scene.add.text(PADDING, PADDING, "Forge & Armory", {
+    const title = scene.add.text(PADDING, PADDING, "鍛造與兵工", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "22px",
       fontStyle: "bold",
       color: TEXT_COLOR
     });
 
-    const subtitle = scene.add.text(PADDING, PADDING + 26, "Shape equipment and outfit champions.", {
+    const subtitle = scene.add.text(PADDING, PADDING + 26, "打造裝備並武裝勇士。", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "14px",
       color: MUTED_TEXT
     });
 
-    const recipeHeader = scene.add.text(PADDING, PADDING + 58, "Recipes", {
+    const recipeHeader = scene.add.text(PADDING, PADDING + 58, "配方", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "16px",
       fontStyle: "bold",
       color: TEXT_COLOR
     });
 
-    this.detailText = scene.add.text(PADDING + COLUMN_WIDTH + 32, PADDING + 58, "Select a recipe", {
+    this.detailText = scene.add.text(PADDING + COLUMN_WIDTH + 32, PADDING + 58, "選擇配方", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "15px",
       color: TEXT_COLOR,
@@ -113,7 +127,7 @@ export default class CraftingPanel extends Phaser.GameObjects.Container {
       PANEL_HEIGHT - PADDING - 32,
       120,
       36,
-      "Forge",
+      "鍛造",
       () => this.handleForge()
     );
 
@@ -123,7 +137,7 @@ export default class CraftingPanel extends Phaser.GameObjects.Container {
     this.equipPromptText = scene.add.text(
       PADDING + COLUMN_WIDTH + 32,
       PADDING + 128,
-      "Inventory",
+      "庫存",
       {
         fontFamily: "Segoe UI, sans-serif",
         fontSize: "16px",
@@ -251,7 +265,7 @@ export default class CraftingPanel extends Phaser.GameObjects.Container {
       entry.text.setFontStyle(entry.recipe === recipe ? "bold" : "normal");
     });
 
-    this.detailText.setText(`${recipe.description}\nCrafting Time: ${recipe.craftingTimeHours}h`);
+    this.detailText.setText(`${recipe.description}\n製作時間： ${recipe.craftingTimeHours} 小時`);
     this.refreshMaterials();
   }
 
@@ -280,7 +294,7 @@ export default class CraftingPanel extends Phaser.GameObjects.Container {
     let canForge = true;
     recipe.ingredients.forEach((ingredient) => {
       const available = materialCounts.get(ingredient.itemId) ?? 0;
-      const requirementText = `${ingredient.quantity}x ${this.getItemName(ingredient.itemId)} (Have ${available})`;
+      const requirementText = `${ingredient.quantity}x ${this.getItemName(ingredient.itemId)} （擁有 ${available}）`;
       const text = this.scene.add.text(startX, offsetY, requirementText, {
         fontFamily: "Segoe UI, sans-serif",
         fontSize: "14px",
@@ -312,7 +326,7 @@ export default class CraftingPanel extends Phaser.GameObjects.Container {
   private handleForge(): void {
     const recipe = this.selectedRecipe;
     if (!recipe) {
-      this.statusText.setText("Select a recipe to begin forging.");
+      this.statusText.setText("選擇配方以開始鍛造。");
       return;
     }
 
@@ -323,7 +337,7 @@ export default class CraftingPanel extends Phaser.GameObjects.Container {
 
     const consumed = inventorySystem.consumeMaterials(requirements);
     if (!consumed) {
-      this.statusText.setText("Insufficient materials in the vault.");
+      this.statusText.setText("倉庫中的材料不足。");
       return;
     }
 
@@ -332,13 +346,14 @@ export default class CraftingPanel extends Phaser.GameObjects.Container {
       const seed = Date.now() + recipe.id.length * 17;
       const forgedItem = craftingSystem.craft(recipe.id, requirements, smithLevel, new RNG(seed));
       const stored = inventorySystem.addItem({ ...forgedItem, itemType: "equipment" });
-      this.statusText.setText(`Crafted ${stored.name} (${stored.quality ?? "standard"}).`);
+      const qualityLabel = this.getQualityLabel(stored.quality);
+      this.statusText.setText(`鍛造完成 ${stored.name} （${qualityLabel}）。`);
       this.pendingEquip = stored;
       this.refreshMaterials();
       this.refreshInventory();
       this.refreshKnightList();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Forge attempt failed.";
+      const message = error instanceof Error ? error.message : "鍛造失敗。";
       this.statusText.setText(message);
     }
   }
@@ -357,7 +372,7 @@ export default class CraftingPanel extends Phaser.GameObjects.Container {
       nameText.setInteractive({ useHandCursor: true });
       nameText.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => {
         this.pendingEquip = item;
-        this.statusText.setText(`Selected ${item.name} for equipping.`);
+        this.statusText.setText(`已選擇 ${item.name} 進行裝備。`);
         this.refreshKnightList();
       });
 
@@ -366,15 +381,15 @@ export default class CraftingPanel extends Phaser.GameObjects.Container {
   }
 
   private describeItem(item: InventoryItem): string {
-    const quality = item.quality ? `${item.quality}` : "standard";
-    const rarity = item.rarity;
-    return `${item.name} [${quality} / ${rarity}]`;
+    const qualityLabel = this.getQualityLabel(item.quality);
+    const rarityLabel = RARITY_NAME_MAP[item.rarity] ?? item.rarity;
+    return `${item.name} [${qualityLabel} / ${rarityLabel}]`;
   }
 
   private refreshKnightList(): void {
     this.knightListContainer.removeAll(true);
     const pending = this.pendingEquip;
-    this.equipPromptText.setText(pending ? `Equip ${pending.name}` : "Inventory");
+    this.equipPromptText.setText(pending ? `裝備 ${pending.name}` : "庫存");
     if (!pending) {
       return;
     }
@@ -390,10 +405,11 @@ export default class CraftingPanel extends Phaser.GameObjects.Container {
       text.setInteractive({ useHandCursor: true });
       text.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => {
         const success = knightManager.equipItem(knight.id, this.selectedSlot, pending.instanceId);
+        const slotLabel = this.getSlotLabel(this.selectedSlot);
         this.statusText.setText(
           success
-            ? `Equipped ${pending.name} to ${knight.name} (${this.selectedSlot}).`
-            : `Unable to equip ${pending.name} on ${knight.name}.`
+            ? `已將 ${pending.name} 裝備給 ${knight.name}（${slotLabel}）。`
+            : `無法將 ${pending.name} 裝備於 ${knight.name}。`
         );
         if (success) {
           this.pendingEquip = undefined;
@@ -407,7 +423,17 @@ export default class CraftingPanel extends Phaser.GameObjects.Container {
 
   private formatKnightEntry(knight: KnightRecord): string {
     const power = knightManager.getPowerScore(knight);
-    return `${knight.name} "${knight.epithet}" [${knight.profession}] Power ${power}`;
+    return `${knight.name}「${knight.epithet}」【${knight.profession}】戰力 ${power}`;
+  }
+
+  private getSlotLabel(slot: EquipmentSlot): string {
+    const entry = SLOT_LABELS.find((candidate) => candidate.id === slot);
+    return entry ? entry.label : slot;
+  }
+
+  private getQualityLabel(quality?: string | null): string {
+    const key = (quality ?? "standard") as string;
+    return QUALITY_NAME_MAP[key] ?? key;
   }
 
   private getItemName(itemId: string): string {

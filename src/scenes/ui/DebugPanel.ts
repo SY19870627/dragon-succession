@@ -58,14 +58,14 @@ export default class DebugPanel extends Phaser.GameObjects.Container {
     background.setOrigin(0, 0);
     background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
 
-    const title = scene.add.text(16, 16, "Debug Console", {
+    const title = scene.add.text(16, 16, "除錯主控台", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "20px",
       fontStyle: "bold",
       color: TEXT_PRIMARY_COLOR
     });
 
-    const subtitle = scene.add.text(16, 40, "Telemetry snapshots & live balance hooks.", {
+    const subtitle = scene.add.text(16, 40, "遙測快照與即時平衡掛鉤。", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "14px",
       color: TEXT_MUTED_COLOR
@@ -77,27 +77,27 @@ export default class DebugPanel extends Phaser.GameObjects.Container {
       color: TEXT_PRIMARY_COLOR
     });
 
-    this.difficultySlider = this.createSlider(16, 160, "Difficulty Multiplier", 0.25, 3, (value) => {
+    this.difficultySlider = this.createSlider(16, 160, "難度倍率", 0.25, 3, (value) => {
       balanceManager.updateConfig({ difficultyMultiplier: value });
-      this.showFeedback(`Difficulty multiplier set to ${value.toFixed(2)}`);
+      this.showFeedback(`難度倍率設為 ${value.toFixed(2)}`);
     });
 
-    this.lootSlider = this.createSlider(16, 220, "Loot Rate", 0.25, 3, (value) => {
+    this.lootSlider = this.createSlider(16, 220, "戰利品獲取率", 0.25, 3, (value) => {
       balanceManager.updateConfig({ lootRate: value });
-      this.showFeedback(`Loot rate set to ${value.toFixed(2)}`);
+      this.showFeedback(`戰利品率設為 ${value.toFixed(2)}`);
     });
 
-    const exportButton = this.createButton(16, panelHeight - 48, "Export", () => {
+    const exportButton = this.createButton(16, panelHeight - 48, "匯出", () => {
       this.handleExport();
     });
 
-    const importButton = this.createButton(132, panelHeight - 48, "Import", () => {
+    const importButton = this.createButton(132, panelHeight - 48, "匯入", () => {
       this.handleImport();
     });
 
-    const resetButton = this.createButton(248, panelHeight - 48, "Reset Stats", () => {
+    const resetButton = this.createButton(248, panelHeight - 48, "重設統計", () => {
       telemetry.reset();
-      this.showFeedback("Telemetry reset.");
+      this.showFeedback("已重設遙測資料。");
     });
 
     this.feedbackText = scene.add.text(16, panelHeight - 82, "", {
@@ -162,17 +162,17 @@ export default class DebugPanel extends Phaser.GameObjects.Container {
 
   private updateTelemetry(snapshot: TelemetrySnapshot): void {
     const lines: string[] = [];
-    lines.push(`Expeditions: ${snapshot.totalExpeditions}`);
+    lines.push(`遠征次數：${snapshot.totalExpeditions}`);
     const winRatePercent = (snapshot.winRate * 100).toFixed(1);
-    lines.push(`Win Rate: ${winRatePercent}%`);
-    lines.push(`Avg Loot: ${snapshot.averageLoot.toFixed(2)}`);
-    lines.push(`Avg Injury: ${snapshot.averageInjury.toFixed(2)}`);
+    lines.push(`勝率：${winRatePercent}%`);
+    lines.push(`平均戰利品：${snapshot.averageLoot.toFixed(2)}`);
+    lines.push(`平均傷勢：${snapshot.averageInjury.toFixed(2)}`);
 
     if (snapshot.lastUpdatedAt > 0) {
       const date = new Date(snapshot.lastUpdatedAt);
-      lines.push(`Last Update: ${date.toLocaleTimeString()}`);
+      lines.push(`最後更新：${date.toLocaleTimeString()}`);
     } else {
-      lines.push("Last Update: --");
+      lines.push("最後更新：--");
     }
 
     this.statsText.setText(lines.join("\n"));
@@ -317,43 +317,43 @@ export default class DebugPanel extends Phaser.GameObjects.Container {
       void navigator.clipboard
         .writeText(payload)
         .then(() => {
-          this.showFeedback("Balance JSON copied to clipboard.");
+          this.showFeedback("平衡設定 JSON 已複製到剪貼簿。");
         })
         .catch(() => {
-          console.log("[DebugPanel] Balance Config:", payload);
-          this.showFeedback("Clipboard unavailable. JSON logged to console.");
+          console.log("[DebugPanel] 平衡設定：", payload);
+          this.showFeedback("無法使用剪貼簿。已在主控台輸出 JSON。");
         });
       return;
     }
 
     if (typeof window !== "undefined" && typeof window.prompt === "function") {
-      window.prompt("Copy balance configuration JSON", payload);
-      this.showFeedback("Balance JSON shown in prompt dialog.");
+      window.prompt("複製平衡設定 JSON", payload);
+      this.showFeedback("已在提示視窗顯示平衡設定 JSON。");
       return;
     }
 
-    console.log("[DebugPanel] Balance Config:", payload);
-    this.showFeedback("Balance JSON logged to console.");
+    console.log("[DebugPanel] 平衡設定：", payload);
+    this.showFeedback("已在主控台輸出平衡設定 JSON。");
   }
 
   private handleImport(): void {
     if (typeof window === "undefined" || typeof window.prompt !== "function") {
-      this.showFeedback("Import unavailable in this environment.");
+      this.showFeedback("此環境無法匯入。");
       return;
     }
 
-    const response = window.prompt("Paste balance configuration JSON");
+    const response = window.prompt("貼上平衡設定 JSON");
     if (!response) {
-      this.showFeedback("Import cancelled.");
+      this.showFeedback("已取消匯入。");
       return;
     }
 
     const applied = balanceManager.importConfig(response);
     if (applied) {
-      this.showFeedback("Balance configuration applied.");
+      this.showFeedback("已套用平衡設定。");
     } else {
       this.feedbackText.setColor("#ff6b6b");
-      this.feedbackText.setText("Invalid balance JSON. No changes applied.");
+      this.feedbackText.setText("平衡設定 JSON 無效，未套用任何變更。");
     }
   }
 

@@ -25,10 +25,10 @@ const BUTTON_ACTIVE_TEXT_COLOR = "#0b0c10";
 const RESOURCE_ORDER: readonly ResourceType[] = ["gold", "food", "fame", "morale"];
 
 const RESOURCE_LABEL: Record<ResourceType, string> = {
-  gold: "Gold",
-  food: "Food",
-  fame: "Fame",
-  morale: "Morale"
+  gold: "黃金",
+  food: "糧食",
+  fame: "聲望",
+  morale: "士氣"
 };
 
 interface TimeButtonConfig {
@@ -37,10 +37,10 @@ interface TimeButtonConfig {
 }
 
 const TIME_BUTTON_CONFIGS: readonly TimeButtonConfig[] = [
-  { label: "Pause", scale: 0 },
-  { label: "x1", scale: 1 },
-  { label: "x2", scale: 2 },
-  { label: "x4", scale: 4 }
+  { label: "暫停", scale: 0 },
+  { label: "1倍", scale: 1 },
+  { label: "2倍", scale: 2 },
+  { label: "4倍", scale: 4 }
 ];
 
 interface TimeButtonEntry {
@@ -329,7 +329,7 @@ export default class UIScene extends Phaser.Scene {
     background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
     background.setInteractive({ useHandCursor: true });
 
-    const label = this.add.text(0, 0, "Knights", {
+    const label = this.add.text(0, 0, "騎士", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "16px",
       fontStyle: "bold",
@@ -371,7 +371,7 @@ export default class UIScene extends Phaser.Scene {
     background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
     background.setInteractive({ useHandCursor: true });
 
-    const label = this.add.text(0, 0, "Forge", {
+    const label = this.add.text(0, 0, "鍛造", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "16px",
       fontStyle: "bold",
@@ -413,7 +413,7 @@ export default class UIScene extends Phaser.Scene {
     background.setStrokeStyle(1, PANEL_STROKE_COLOR, 0.35);
     background.setInteractive({ useHandCursor: true });
 
-    const label = this.add.text(0, 0, "Debug", {
+    const label = this.add.text(0, 0, "除錯", {
       fontFamily: "Segoe UI, sans-serif",
       fontSize: "16px",
       fontStyle: "bold",
@@ -687,8 +687,8 @@ export default class UIScene extends Phaser.Scene {
    * Updates the weekly economy summary text.
    */
   private updateEconomyForecast(forecast: EconomyForecast): void {
-    const currentLine = this.formatForecastLine("This Week", forecast.currentWeek);
-    const nextLine = this.formatForecastLine("Next Week", forecast.nextWeek);
+    const currentLine = this.formatForecastLine("本週", forecast.currentWeek);
+    const nextLine = this.formatForecastLine("下週", forecast.nextWeek);
 
     this.economyCurrentText.setText(currentLine);
     this.economyCurrentText.setColor(
@@ -714,10 +714,10 @@ export default class UIScene extends Phaser.Scene {
 
     const deficitSuffix =
       projection.deficits.length > 0
-        ? ` DEFICIT: ${projection.deficits.map((resource) => RESOURCE_LABEL[resource]).join(", ")}`
+        ? ` 短缺：${projection.deficits.map((resource) => RESOURCE_LABEL[resource]).join("、")}`
         : "";
 
-    return `${label} - Week ${projection.weekNumber}: ${segments.join("  ")}${deficitSuffix}`;
+    return `${label} - 第${projection.weekNumber}週： ${segments.join("  ")}${deficitSuffix}`;
   }
 
   /**
